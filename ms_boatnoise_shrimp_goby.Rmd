@@ -1,0 +1,1367 @@
+---
+title: "shrimp_goby_boatnoise"
+author: "Jack Manera"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    code_download: true
+    code_folding: hide
+    depth: 4
+    number_sections: no
+    theme:  cosmo
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+  pdf_document:
+    toc: yes
+---
+
+#1. Data wrangling
+##1.1 Loading the required packages
+```{r, message=FALSE, results='hide'}
+#install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, brms, cmdstanr, broom, broom.mixed, tidybayes, ggthemes, emmeans, ggdist, gridExtra, bayesplot, see, patchwork, ggtext, extraDistr) 
+
+remotes::install_github("stan-dev/loo")
+# Setting colours for vidsalisations
+colour1 <- "#97A275"
+colour2 <- "#F2B23A"
+colour3 <- "#F2711B"
+colour4 <- "#8CBEB2"
+colour5 <- "#E7C27D"
+colour6 <- "#F2A775"
+colour11 <- "#666E4F"
+colour12 <- "#A38346"
+colour13 <- "#9C4811"
+```
+
+##1.2 Unblinding the data
+```{r}
+#assigning the directory so that the code can be universally read on any computer as long as the entire project file is shared
+directory <- './1-data/'
+
+#reading in the coded raw BORIS output
+BORIS_output <- read.csv("./1-data/BORIS_output_update.csv")
+
+#reading in the decoder
+Video_codes <- read.csv("./1-data/Video_codes.csv")
+
+shrimp_species <- read.csv("./1-data/species.csv")
+
+length(unique(BORIS_output$code))
+
+#binding the decoder to the BORIS output and revealing the treatment and stage
+BORIS_output$code <- str_sub(BORIS_output$video_id, 2,)
+BORIS_output$code <- as.factor(BORIS_output$code)
+shrimp_species$code <- as.factor(shrimp_species$code)
+Video_codes$code <- as.factor(Video_codes$code)
+decoded_dataframe <- inner_join(inner_join(BORIS_output, Video_codes, by = c("code")), shrimp_species, by = c("code"))
+```
+
+## 1.3 Cross-checking the imported datasets
+```{r}
+# Find common codes across all data sets
+common_codes <- Reduce(intersect, list(BORIS_output$code, shrimp_species$code, Video_codes$code))
+
+# Combine all codes from the three data sets
+all_codes <- unique(c(BORIS_output$code, shrimp_species$code, Video_codes$code))
+
+# Find codes not common across all data sets
+codes_not_common <- setdiff(all_codes, common_codes)
+
+# Define a function to check which data sets contain each code
+check_code_origin <- function(code) {
+  origins <- c()
+
+  if(code %in% BORIS_output$code) {
+    origins <- c(origins, "BORIS_output")
+  }
+  if(code %in% shrimp_species$code) {
+    origins <- c(origins, "shrimp_species")
+  }
+  if(code %in% Video_codes$code) {
+    origins <- c(origins, "Video_codes")
+  }
+
+  return(paste(origins, collapse=", "))
+}
+
+# Create a dataframe to store the results
+results <- data.frame(code = character(0), origin = character(0), stringsAsFactors = FALSE)
+
+# Loop through each code not common across all data sets
+for(code in codes_not_common) {
+  origin <- check_code_origin(code)
+  results <- rbind(results, data.frame(code = as.character(code), origin = origin, stringsAsFactors = FALSE))
+}
+
+# Print the results
+print(results)
+
+# Missing observations are identified exclusively within the 'Video_codes' dataframe. This situation suggests that all videos capturing both shrimp and gobies are consistently represented across the datasets. However, there were instances where burrows were recorded and assigned video codes but showed no activity from gobies or shrimp during these recordings. These instances led to the assumption that such burrows were inactive, resulting in their exclusion from the further analysis of the study.
+```
+
+##1.4 Cleaning the dataframe
+###1.4.1 Column renaming
+```{r}
+decoded_dataframe <- decoded_dataframe |> 
+  rename(shrimp_species = species)
+
+#renaming some of the variables and extracting individual variables from columns that have multiple variables contained in one string
+decoded_dataframe <- decoded_dataframe |> 
+  dplyr::rename(stage = video_section,
+                duration = total_duration_s,
+                behaviour = behavior) |>
+  dplyr::mutate(date = str_sub(date_file, , 6),
+                species = str_sub(subject, 5,),
+                duration = as.numeric(duration),
+                boat_id = str_sub(date_file, -1, -1),
+                video_num = as.numeric(str_sub(video_id, 2)),
+                burrow = ceiling(video_num/3),
+                individual = str_sub(subject, 1, 1),
+                helper = str_sub(date_file, -6,-6),
+                stroke = ifelse(helper == "t", 'control', 
+                                ifelse((boat_id == "A")|(boat_id == "B")|(boat_id == "C")|(boat_id == "D"), 
+                                       '2', '4')))
+
+#creating some unique identifiers to make grouping easier later on for reorganising of the dataframe
+decoded_dataframe <- decoded_dataframe |> 
+  unite("unique_id", 'burrow','individual', 'species', 'stage', remove = FALSE) |> 
+  unite("burrow_species_stage", 'burrow', 'species', 'stage', remove = FALSE) |> 
+  unite("burrow_species", 'burrow', 'species', remove = FALSE)
+```
+
+###1.4.2 Removing redundant BORIS entries
+```{r}
+#the next few lines of code are to do with the way BORIS outputs data, where there was redundant empty sections due to both species being independently scored in the software. So here we are filtering out the species specific data from the correlating BORIS species observation and then rebinding the data to remove all of the empty artifact entries. 
+
+#extracting just the goby data so that a species variable can be made
+goby_dataframe <- decoded_dataframe |> 
+  dplyr::filter(species == "Goby") |> 
+  dplyr::filter(str_detect(video_id, 'g'))
+
+#extracting just the shrimp data so that a species variable can be made
+shrimp_dataframe <- decoded_dataframe |> 
+  dplyr::filter(species == "Shrimp")  |>  
+  dplyr::filter(str_detect(video_id, 'j'))
+
+#binding the two species specific data frames back together so that there is now no empty 
+workingdf1 <- bind_rows(goby_dataframe, shrimp_dataframe) 
+
+#filtering for the behviours of interest to this experiment
+workingdf2 <- workingdf1 |> 
+  group_by(unique_id) |> 
+  filter(behaviour == 'INSIDE' | behaviour == 'EDGE' | behaviour == 'NEAR' | behaviour == 'AWAY' |behaviour == 'CONTACT' |behaviour == 'APART' ) |>
+  mutate(averageduration = sum(duration))
+
+#becuase of the way BORIS outputs data there are redundant individuals in the data, e.g., even if there are only two shrimp in a burrow then BORIS will still output observations for a third shrimp and all value will be 0's. this is what this section of code is removing
+workingdf3 <- workingdf2 |> 
+  group_by(burrow, species, individual) |> 
+  filter(sum(averageduration) != 0)
+```
+
+###1.4.3 Assigning values to missing entries
+```{r}
+#now here we are making the assumption that when a goby or shrimp is present in other videos but missing from the video of focus it is either away and out of frame for the entire trial if it is a goby. Otherwise it is inside the burrow the entire time if it is a shrimp. These assumptions are based off of preliminary observation and the general tendencies of each species. Because of this assumption we are assigning the respective value to the behviour in cases where one of the species is known to be present in a burrow but not viewed for the length of the trial. 
+fixeddf1 <- workingdf3 |> 
+  filter(averageduration == 0) |> 
+  mutate(duration = ifelse(species == "Goby" & behaviour == "AWAY", 300, duration),
+         duration = ifelse(species == "Shrimp" & behaviour == "INSIDE", 300, duration)
+         )
+
+fixeddf2 <- workingdf3 |> 
+  filter(averageduration != 0)
+
+workingdf4 <- rbind(fixeddf2, fixeddf1) |> 
+  group_by(burrow_species) |> 
+  dplyr::mutate(number_conspecifics = max(as.integer(individual))) |> 
+  ungroup()
+
+#now using the number of conspecifics to calculate a duration value that represents the mean time spent doing that activity for that species (i.e. goby or shrimp) in that burrow as we are un able to preserve identity and thus instead must look at species averages for each behaviour. 
+workingdf5 <- workingdf4 |> 
+  group_by(burrow_species, behaviour, stage) |> 
+  dplyr::mutate(mean_duration = mean(duration)) |> 
+  ungroup() |> 
+  filter(individual == 1) 
+
+#transforming the data frame into wide format and turning time spent in each zone into a proportion of the total time (i.e. a value between 0 and 1)
+wide_data <- workingdf5 |>
+  pivot_wider(
+    id_cols = c(burrow_species, burrow_species_stage, burrow, stage, species, boat_id, stroke, site, number_conspecifics, shrimp_species),
+    names_from = behaviour,
+    values_from = mean_duration
+  )
+
+wide_data <- wide_data |> 
+  mutate(INSIDE = as.numeric(INSIDE),
+         EDGE = as.numeric(EDGE),
+         NEAR = as.numeric(NEAR),
+         AWAY = as.numeric(AWAY),
+         CONTACT = as.numeric(CONTACT),
+         APART = as.numeric(APART)) |> 
+  mutate(total = INSIDE+NEAR+EDGE+AWAY,
+         inside = (INSIDE + EDGE)/(INSIDE+EDGE+NEAR+AWAY), 
+         away = (NEAR + AWAY)/(INSIDE+EDGE+NEAR+AWAY),
+         number_conspecifics = as.factor(number_conspecifics),
+         shrimp_contact = CONTACT/(CONTACT+APART)
+         ) |> 
+  dplyr::select(-INSIDE, -EDGE, -NEAR, -AWAY, -CONTACT, -APART)
+
+#checking if every burrow contains observations for both 'Shrimp' and 'Goby'
+burrow_values <- unique(wide_data$burrow) 
+has_shrimp <- burrow_values %in% wide_data$burrow[wide_data$species == 'Shrimp'] 
+has_goby <- burrow_values %in% wide_data$burrow[wide_data$species == 'Goby'] 
+burrows_without_both_species <- burrow_values[!(has_shrimp & has_goby)]
+cat("burrows without both 'Shrimp' and 'Goby' species:", paste(burrows_without_both_species, collapse = ', '))
+
+#removing the rows with burrows without both 'Shrimp' and 'Goby' species from the dataframe
+wide_data <- wide_data[!wide_data$burrow %in% burrows_without_both_species, ]
+
+wide_data <- wide_data |> 
+  mutate(burrow = as.factor(burrow))
+
+#Checking to see the count of observations per burrow
+burrow_counts <- table(wide_data$burrow)
+print(burrow_counts)
+
+#there are some burrows that are missing stages due to the animal not being observered at all during that observation so we will make some conditional assumptions and fill in the missing values. 
+
+#a function to fill the missing stages for each species within each burrow
+fill_missing_stages <- function(df) {
+  all_stages <- c('Pre', 'During', 'Post')
+  
+  missing_stages <- setdiff(all_stages, unique(df$stage))
+  
+  if(length(missing_stages) == 0) return(data.frame())
+  
+  common_values <- df[1, ]
+  
+  new_rows <- data.frame()
+  
+  for(stage in missing_stages) {
+    new_row <- common_values
+    new_row$stage <- stage
+    
+    # Set column values based on species
+    if(new_row$species == "Goby") {
+      new_row$away <- 1
+      new_row$inside <- 0
+      new_row$total <- 300
+      new_row$shrimp_contact <- 0
+    } else if(new_row$species == "Shrimp") {
+      new_row$away <- 0
+      new_row$inside <- 1
+      new_row$total <- 300
+      new_row$shrimp_contact <- NA
+    }
+    
+    new_rows <- rbind(new_rows, new_row)
+  }
+  
+  return(new_rows)
+}
+
+#applying the function
+fixeddf3 <- wide_data |>
+  group_by(burrow_species) |>
+  do(fill_missing_stages(.)) |>
+  ungroup()
+
+wide_data_filled <- rbind(wide_data, fixeddf3)
+  
+#Checking to see the count of observations per burrow
+filled_burrow_counts <- table(wide_data_filled$burrow)
+print(filled_burrow_counts)
+```
+
+###1.4.4 Changing dataframe format 
+```{r}
+workingdf7 <- wide_data_filled |> 
+  mutate(burrow_stage = paste(burrow, stage))
+
+goby_df <- workingdf7 |> 
+  filter(species == "Goby") |> 
+  rename(goby_out = away, goby_total = total, goby_number = number_conspecifics) |> 
+  select(-c("inside", "species", "burrow_species", "burrow_species_stage", "shrimp_contact"))
+
+shrimp_df <- workingdf7 |> 
+  filter(species == "Shrimp") |> 
+  rename(shrimp_out = away, shrimp_total = total, shrimp_number = number_conspecifics) |> 
+  select(c("shrimp_out", "shrimp_total", "shrimp_number", "burrow_stage", "shrimp_contact"))
+
+final_df <- inner_join(goby_df, shrimp_df, by = "burrow_stage") |> 
+  mutate(shrimp_contact = ifelse(is.na(shrimp_contact), ifelse(goby_out == 1, 0, 1 - goby_out), shrimp_contact))
+
+write_csv(final_df, "final_df.csv")
+```
+
+#2. Statistical analysis using zero-one inflated beta regression
+##2.1 Building a global model
+```{r}
+#building a global model for the proportion of time gobies spent out of the burrow
+zoib_formula <- bf(
+  # mu (mean) part
+  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # phi (precision) part
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # alpha (zero-one-inflation) part
+  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # The one-inflated part, conditional on the 0s
+  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  
+  family = zero_one_inflated_beta()
+)
+```
+
+##2.2 Specifying priors
+###2.2.1 Checking default priors
+```{r}
+get_prior(
+  zoib_formula,
+  data = final_df
+)
+#we can see that all the beta coefficients are being given a flat prior which means it can take on a value from - infinity to + infinity. All the beta coefficients are on the logit scale so lets plot how changing the value of beta relates to different proportions
+```
+
+###2.2.2 Graphing logit~proportion
+```{r}
+tibble(x = seq(-8, 8, by = 0.1)) |> 
+  mutate(y = plogis(x)) |> 
+  ggplot(aes(x = x, y = y)) +
+  geom_line(size = 1) +
+  labs(x = "Logit scale", y = "Probability scale")
+
+#we can see that after -5 or +5 the probability doesn't change much, instead of leaving our priors at the default of + and - infinity, we should say that they are most likely to occur between -5 and +5.
+```
+
+###2.2.3 Ploting priors
+```{r}
+# Generate data points
+x <- seq(-20, 20, length.out = 1000)  # Adjusted range for better visualization
+
+# Define parameters for the distributions
+loc_logistic <- 0
+scale_logistic <- 3
+
+df_student_t <- 3
+loc_student_t <- 0
+scale_student_t <- 2.5
+
+loc_normal <- 0
+scale_normal <- 5
+
+# Calculate PDFs
+pdf_logistic <- dlogis(x, location = loc_logistic, scale = scale_logistic)
+pdf_student_t <- dt(x, df = df_student_t)
+pdf_normal <- dnorm(x, mean = loc_normal, sd = scale_normal)
+
+# Plot the PDFs
+df <- data.frame(x = x, Logistic = pdf_logistic, Student_t = pdf_student_t, Normal = pdf_normal)
+ggplot(df, aes(x)) +
+  geom_line(aes(y = Logistic, color = "Logistic(0, 3)")) + # Default priors of Logistic(0,1) have been broadened as these priors seemed too restrictive
+  geom_line(aes(y = Student_t, color = "Student_t(3, 0, 2.5)")) +
+  geom_line(aes(y = Normal, color = "Normal(0, 5)")) + #For the beta coefficient prior, we will set it to be normally distributed around 0 with an sd of 5, here is the plotted prior distribution 
+  labs(title = "Probability Density Functions",
+       x = "x",
+       y = "Probability Density") +
+  scale_color_manual(name = "Distribution", values = c("Logistic(0, 3)" = "blue", "Student_t(3, 0, 2.5)" = "green", "Normal(0, 5)" = "red")) +
+  theme_minimal()
+```
+
+###2.2.4 Setting priors 
+```{r}
+#the priors for the intercept have been left as the default and the coefficient priors defined above
+priors <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
+            set_prior("logistic(0, 3)", class = "Intercept", dpar = "coi"),
+            set_prior("logistic(0, 3)", class = "Intercept", dpar = "zoi"),
+            set_prior("student_t(3, 0, 2.5)", class = "Intercept", dpar = "phi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "phi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "zoi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "coi", lb = 0),
+            set_prior("normal(0, 5)", class = "b"),
+            set_prior("normal(0, 5)", class = "b", dpar = "phi"),
+            set_prior("normal(0, 5)", class = "b", dpar = "zoi"),
+            set_prior("normal(0, 5)", class = "b", dpar = "coi"))
+```
+
+###2.2.5 Prior predictive check 
+```{r}
+prior_formula <- bf(
+  # mu (mean) part
+  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # phi (precision) part
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # alpha (zero-one-inflation) part
+  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # The one-inflated part, conditional on the 0s
+  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  
+  family = zero_one_inflated_beta()
+)
+
+prior_model <- brm(
+  prior_formula,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 1000, warmup = 100,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 12345,
+  sample_prior = "only",
+  file = "prior_check"
+)
+
+pp_check(prior_model, ndraws=20)
+pp_check(prior_model, ndraws=100, type = 'stat', stat = 'mean')
+```
+
+
+##2.3 Modelling the proportion of time gobies spent outside of the burrow
+```{r}
+goby_out_formula_1 <- bf(
+  # mu (mean) part
+  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # phi (precision) part
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # alpha (zero-one-inflation) part
+  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # The one-inflated part, conditional on the 0s
+  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  
+  family = zero_one_inflated_beta()
+)
+
+goby_out_model <- brm(
+  goby_out_formula_1,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 12345,
+  file = "goby_out_model",
+  
+)
+
+summary(goby_out_model)
+```
+###2.3.1 Model fit and diagnostics
+####2.3.1.1 Model convergence
+```{r}
+#convergence diagnostics (R-hat)
+extract_rhats <- function(model) {
+  model_summary <- summary(model)
+  #extract R-hat values for fixed effects
+  fixed_rhats <- model_summary$fixed[, "Rhat", drop = FALSE]
+  #check for random effects and extract R-hat values if present
+  if (!is.null(model_summary$random)) {
+    random_rhats <- do.call(rbind, lapply(model_summary$random, function(x) x[, "Rhat", drop = FALSE]))
+    #combine fixed and random effects R-hat values
+    rhats <- rbind(fixed_rhats, random_rhats)
+  } else {
+    rhats <- fixed_rhats
+  }
+  
+  return(rhats)
+}
+
+extract_rhats(goby_out_model)
+```
+
+####2.3.1.2 Model fit
+```{r}
+#posterior predictive checks
+pp_check(goby_out_model, ndraws = 50)
+
+pp_check(goby_out_model, type='stat', stat='mean')
+
+#fitted vs predicted values
+summary(fitted(goby_out_model))
+summary(predict(goby_out_model))
+```
+
+###2.3.2 Posterior marginal effects
+####2.3.2.1 Pairwise contrasts of stroke and stage
+```{r}
+goby_out_contrast_effect <- goby_out_model |>
+  emmeans(~ stroke*stage, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+# Extract the relevant contrast information
+goby_out_results.table <- as.data.frame(goby_out_contrast_effect) |> 
+  filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
+
+goby_out_results.table
+
+goby_out_contrast_draws <- goby_out_model |>
+  emmeans(~ stroke*stage, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") |> 
+  gather_emmeans_draws()
+  goby_out_contrast_draws
+
+goby_out_temporal_contrasts <- goby_out_contrast_draws |> 
+  filter(contrast %in% c("control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post")) |> 
+  mutate(stroke = ifelse(contrast %in% c("control Pre - control During", "control Pre - control Post"), "Control", ifelse(contrast %in% c("4 Pre - 4 During", "4 Pre - 4 Post"), "4", "2")))
+
+goby_out_temporal_contrasts$stroke <- factor(goby_out_temporal_contrasts$stroke, levels = c("Control", "4", "2"))
+
+fig.goby_out_temporal_contrasts<- ggplot(goby_out_temporal_contrasts, aes(x = .value, y = factor(contrast, levels = c("control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post")), color = stroke, fill = stroke)) +
+   geom_vline(xintercept = 0, color = "black", size = 0.5) +
+  stat_halfeye(.width = c(0.89, 0.95))+
+  scale_color_manual(values = c(colour11, colour12, colour13)) +
+  scale_fill_manual(values = alpha(c(colour1, colour2, colour3), 0.8)) +
+  labs(y = "Contrasts of the time periods relative to noise exposure",
+       fill = "Noise treatment", color = "Noise treatment",
+       fill_ramp = "Credible interval") +
+  xlab(NULL) +
+  coord_flip() +
+  theme(legend.position = "right", 
+        axis.text.x = element_text(angle = 50, hjust =1)) +
+  scale_y_discrete(labels = c("Pre - During", "Pre - Post", "Pre - During", "Pre - Post", "Pre - During", "Pre - Post")) +
+  scale_x_continuous(breaks = seq(-0.4, 0.5, 0.1), labels = c("-0.4","-0.3", "-0.2","-0.1" , "0", "0.1", "0.2", "0.3", "0.4", "0.5"), limits = c(-0.4, 0.4))
+
+fig.goby_out_temporal_contrasts
+```
+###2.3.3 Plot of raw data and predicted estimates
+####2.3.3.1 Extracting model estimates
+```{r}
+goby_out_model_estimates <- goby_out_model |> 
+  emmeans(~ stroke*stage,
+          epred = TRUE,
+          rg.limit = 14000,
+          re_formula = NA)
+
+goby_out_model_estimates <- as.data.frame(goby_out_model_estimates)
+
+goby_out_model_estimates
+
+write.csv(goby_out_model_estimates, "goby_out_model_estimates.csv")
+
+goby_out_model_estimates_control <- goby_out_model_estimates |> 
+  filter(stroke == "control") |> 
+  rename(.value = emmean)
+
+goby_out_model_estimates_four <- goby_out_model_estimates |> 
+  filter(stroke == "4")|> 
+  rename(.value = emmean)
+
+goby_out_model_estimates_two <- goby_out_model_estimates |> 
+  filter(stroke == "2")|> 
+  rename(.value = emmean)
+```
+
+####2.3.3.2 Plotting control estimates and raw data
+```{r}
+goby_control_raw_data <- final_df |> 
+  filter(stroke =="control") |> 
+  rename(.value = goby_out)
+
+goby_control_raw_data$stage <- factor(goby_control_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+#assigning a value for the baseline mean
+goby_out_model_estimates_control_intercept <- goby_out_model_estimates_control %>%
+  filter(stage == "Pre") %>%
+  pull(.value)
+
+goby_out_fig_control <- ggplot(goby_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_hline(yintercept = goby_out_model_estimates_control_intercept, linetype = "dashed")+
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = goby_out_model_estimates_control, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = goby_out_model_estimates_control, size = 2, position = position_nudge(x = 0.5)) +
+  labs(x="Period relative to treatment") +
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(size = 13, face = "bold", margin = margin(t = 0, b = 0, l = 0, r = 10)),
+        plot.title = element_textbox_simple(face = "bold", size = 14, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#A3C088", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"),
+        plot.background = element_rect(fill = NA, colour = NA))+
+  ggtitle("Control")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#76A34A", "Post" = "#D3D9A7")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#2A330E", "Post" = "#5d634c")) +
+  coord_flip()
+
+goby_out_fig_control
+```
+####2.3.3.3 Plotting 4-stroke estimates and raw data
+```{r}
+goby_four_raw_data <- final_df |> 
+  filter(stroke =="4") |> 
+  rename(.value = goby_out)
+
+goby_four_raw_data$stage <- factor(goby_four_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+#assigning a value for the baseline mean
+goby_out_model_estimates_four_intercept <- goby_out_model_estimates_four %>%
+  filter(stage == "Pre") %>%
+  pull(.value)
+
+goby_out_fig_four <- ggplot(goby_four_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_hline(yintercept = goby_out_model_estimates_four_intercept, linetype = "dashed")+
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = goby_out_model_estimates_four, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = goby_out_model_estimates_four, size = 2, position = position_nudge(x = 0.5)) +
+  ylab("Proportion of time spent out of the burrow")+
+  theme(legend.position = "none", 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        axis.title.x = element_text(size = 13, face = "bold", margin = margin(t = 15, b = 0, l = 0, r = 0)),
+        plot.title = element_textbox_simple(face = "bold", size = 14, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#F6BC65", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"),
+        plot.background = element_rect(fill = NA, colour = NA))+
+  ggtitle("4-stroke")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#F29E00", "Post" = "#F2D5A0")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#805213", "Post" = "#70532b")) +
+  coord_flip()
+
+goby_out_fig_four
+```
+
+####2.3.3.4 Plotting 2-stroke estimates and raw data
+```{r}
+goby_two_raw_data <- final_df |> 
+  filter(stroke =="2") |> 
+  rename(.value = goby_out)
+
+goby_two_raw_data$stage <- factor(goby_two_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+goby_out_model_estimates_two_intercept <- goby_out_model_estimates_two %>%
+  filter(stage == "Pre") %>%
+  pull(.value)
+
+goby_out_fig_two <- ggplot(goby_two_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_hline(yintercept = goby_out_model_estimates_two_intercept, linetype = "dashed")+
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = goby_out_model_estimates_two, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = goby_out_model_estimates_two, size = 2, position = position_nudge(x = 0.5)) +
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        plot.title = element_textbox_simple(face = "bold", size = 14, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#EB9063", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"),
+        plot.background = element_rect(fill = NA, colour = NA))+
+  ggtitle("2-stroke")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#E25A00", "Post" = "#F2B389")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#542709", "Post" = "#66422a")) +
+  coord_flip()
+
+goby_out_fig_two
+```
+####2.3.3.5 Combining plots into one window
+```{r}
+# Combine the plots
+goby_out_plot <- goby_out_fig_control + goby_out_fig_four + goby_out_fig_two + 
+  plot_layout(ncol = 3)
+
+# Display the combined plot
+goby_out_plot
+
+ggsave("goby_out_plot.png", plot = goby_out_plot, units = "px", width = 1500, height = 800, dpi = 320, scale = 2)
+```
+
+###2.3.4 Modelling the effect of covariates on the proportion of time gobies spent outside of the burrow
+####2.3.4.1 Goby number
+```{r}
+goby_out_goby_number <- goby_out_model |>
+  emmeans(~ goby_number, 
+          epred = TRUE,
+          re_formla = NULL) |> 
+  contrast(method = "revpairwise")
+
+goby_out_goby_number
+
+goby_out_goby_number_draws <- goby_out_model |>
+  emmeans(~ goby_number, 
+          epred = TRUE,
+          re_formla = NULL) |> 
+  contrast(method = "revpairwise")|> 
+  gather_emmeans_draws()
+
+goby_out_goby_number_fig<- ggplot(goby_out_goby_number_draws, aes(x = .value, y = contrast)) +
+   geom_vline(xintercept = 0, color = "black", size = 0.5) +
+  stat_halfeye(.width = c(0.95))+
+  labs(y = "Contrasts of the effect of the number of goby",
+       fill = "Noise treatment", color = "Noise treatment",
+       fill_ramp = "Credible interval") +
+  xlab(NULL) +
+  coord_flip()
+
+goby_out_goby_number_fig
+```
+
+####2.3.4.2 Shrimp number
+```{r}
+goby_out_shrimp_number <- goby_out_model |>
+  emmeans(~ shrimp_number, 
+          epred = TRUE,
+          re_formla = NULL) |> 
+  contrast(method = "revpairwise")
+
+goby_out_shrimp_number
+
+goby_out_shrimp_number_estimates <- goby_out_model |>
+  emmeans(~ shrimp_number, 
+          epred = TRUE,
+          re_formla = NULL)
+
+goby_out_shrimp_number_estimates
+
+goby_out_shrimp_number_draws <- goby_out_model |>
+  emmeans(~ shrimp_number, 
+          epred = TRUE,
+          re_formla = NULL) |> 
+  contrast(method = "revpairwise")|> 
+  gather_emmeans_draws()
+
+goby_out_shrimp_number_fig<- ggplot(goby_out_shrimp_number_draws, aes(x = .value, y = contrast)) +
+   geom_vline(xintercept = 0, color = "black", size = 0.5) +
+  stat_halfeye(.width = c(0.95))+
+  labs(y = "Contrasts of the effect of the number of shrimp",
+       fill = "Noise treatment", color = "Noise treatment",
+       fill_ramp = "Credible interval") +
+  xlab(NULL) +
+  coord_flip()
+
+goby_out_shrimp_number_fig
+```
+
+####2.3.4.3 Shrimp species
+```{r}
+goby_out_shrimp_species <- goby_out_model |>
+  emmeans(~ shrimp_species, 
+          epred = TRUE,
+          re_formla = NULL) |> 
+  contrast(method = "revpairwise")
+
+goby_out_shrimp_species
+
+goby_out_shrimp_species_estimates <- goby_out_model |>
+  emmeans(~ shrimp_species, 
+          epred = TRUE,
+          re_formla = NULL)
+
+goby_out_shrimp_species_estimates
+
+goby_out_shrimp_species_draws <- goby_out_model |>
+  emmeans(~ shrimp_species, 
+          epred = TRUE,
+          re_formla = NULL) |> 
+  contrast(method = "revpairwise")|> 
+  gather_emmeans_draws()
+
+goby_out_shrimp_species_fig<- ggplot(goby_out_shrimp_species_draws, aes(x = .value, y = contrast)) +
+   geom_vline(xintercept = 0, color = "black", size = 0.5) +
+  stat_halfeye(.width = c(0.95))+
+  labs(y = "Contrasts of the effect of the species of shrimp",
+       fill = "Noise treatment", color = "Noise treatment",
+       fill_ramp = "Credible interval") +
+  xlab(NULL) +
+  coord_flip()
+
+goby_out_shrimp_species_fig
+```
+
+
+##2.4 Modelling the proportion of time shrimp spent outside of the burrow
+```{r}
+shrimp_out_formula <- bf(
+  # mu (mean) part
+  shrimp_out ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+  # phi (precision) part
+  phi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+  # alpha (zero-one-inflation) part
+  zoi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+  # The one-inflated part, conditional on the 0s
+  coi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+  
+  family = zero_one_inflated_beta()
+)
+
+shrimp_out_model <- brm(
+  shrimp_out_formula,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 12345,
+  file = "shrimp_out_model"
+)
+
+summary(shrimp_out_model)
+```
+
+###2.4.1 Model fit and diagnostics
+####2.4.1.1 Model convergence
+```{r}
+extract_rhats(shrimp_out_model)
+```
+
+####2.4.1.2 Model fit
+```{r}
+#posterior predictive checks
+pp_check(shrimp_out_model)
+
+pp_check(shrimp_out_model, type='stat', stat='mean')
+
+#fitted vs predicted values
+summary(fitted(shrimp_out_model))
+summary(predict(shrimp_out_model))
+```
+
+###2.4.2 Posterior marginal effects
+####2.4.2.1 Pairwise contrasts of stroke and stage
+```{r}
+shrimp_out_contrasts <- shrimp_out_model |>
+  emmeans(~ stroke*stage, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+# Extract the relevant contrast information
+shrimp_out_contrasts <- as.data.frame(shrimp_out_contrasts) |> 
+  filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
+
+shrimp_out_contrasts
+
+shrimp_out_contrast_draws <- shrimp_out_model  |>
+  emmeans(~ stroke*stage, 
+          epred = TRUE,
+          re_formula = NA) |> 
+  contrast(method = "revpairwise") |> 
+  gather_emmeans_draws()
+
+shrimp_out_temporal_contrasts <- shrimp_out_contrast_draws |> 
+  filter(contrast %in% c("control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post")) |> 
+  mutate(stroke = ifelse(contrast %in% c("control Pre - control During", "control Pre - control Post"), "Control", ifelse(contrast %in% c("4 Pre - 4 During", "4 Pre - 4 Post"), "4", "2")))
+
+shrimp_out_temporal_contrasts$stroke <- factor(shrimp_out_temporal_contrasts$stroke, levels = c("Control", "4", "2"))
+
+shrimp_out_temporal_contrasts_fig <- ggplot(shrimp_out_temporal_contrasts, aes(x = .value, y = factor(contrast, levels = c("control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post",  "2 Pre - 2 During", "2 Pre - 2 Post")), color = stroke, fill = stroke)) +
+  geom_vline(xintercept = 0, color = "black", size = 0.5) +
+  stat_halfeye(.width = c(0.89, 0.95)) +
+  scale_color_manual(values = c(colour11, colour12, colour13)) +
+  scale_fill_manual(values = alpha(c(colour1, colour2, colour3), 0.8)) +
+  labs(x = "Difference in the proportion of time spent out of the burrow",
+       y = "Contrasts of the time periods relative to noise exposure",
+       fill = "Noise treatment", color = "Noise treatment",
+       fill_ramp = "Credible interval") +
+  coord_flip() +
+  theme(legend.position = "top", 
+        axis.text.x = element_text(angle = 50, hjust =1)) +
+  scale_y_discrete(labels = c("Pre - During", "Pre - Post", "Pre - During", "Pre - Post", "Pre - During", "Pre - Post")) +
+  scale_x_continuous(breaks = seq(-0.2, 0.3, 0.1), labels = c("-0.2","-0.1" , "0", "0.1", "0.2", "0.3"), limits = c(-0.3, 0.4)) 
+
+
+shrimp_out_temporal_contrasts_fig
+```
+###2.4.3 Plot of raw data and predicted estimates
+####2.4.3.1 Extracting model estimates
+```{r}
+shrimp_out_model_estimates <- shrimp_out_model |> 
+  emmeans(~ stroke*stage,
+          epred = TRUE,
+          rg.limit = 14000,
+          re_formula = NA)
+
+shrimp_out_model_estimates <- as.data.frame(shrimp_out_model_estimates)
+
+shrimp_out_model_estimates
+
+write.csv(shrimp_out_model_estimates, "shrimp_out_model_estimates.csv")
+
+shrimp_out_model_estimates_control <- shrimp_out_model_estimates |> 
+  filter(stroke == "control") |> 
+  rename(.value = emmean)
+
+shrimp_out_model_estimates_four <- shrimp_out_model_estimates |> 
+  filter(stroke == "4")|> 
+  rename(.value = emmean)
+
+shrimp_out_model_estimates_two <- shrimp_out_model_estimates |> 
+  filter(stroke == "2")|> 
+  rename(.value = emmean)
+```
+
+####2.4.3.2 Plotting control estimates and raw data
+```{r}
+shrimp_control_raw_data <- final_df |> 
+  filter(stroke =="control") |> 
+  rename(.value = shrimp_out)
+
+shrimp_control_raw_data$stage <- factor(shrimp_control_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+#assigning a value for the baseline mean
+shrimp_out_model_estimates_control_intercept <- shrimp_out_model_estimates_control %>%
+  filter(stage == "Pre") %>%
+  pull(.value)
+
+shrimp_out_fig_control <- ggplot(shrimp_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_hline(yintercept = shrimp_out_model_estimates_control_intercept, linetype = "dashed")+
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_out_model_estimates_control, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = shrimp_out_model_estimates_control, size = 2, position = position_nudge(x = 0.5)) +
+  labs(x="Period relative to treatment")+
+    theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(size = 13, face = "bold", margin = margin(t = 0, b = 0, l = 0, r = 10)),
+        plot.title = element_textbox_simple(face = "bold", size = 14, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#A3C088", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"),
+        plot.background = element_rect(fill = NA, colour = NA))+
+  ggtitle("Control")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#76A34A", "Post" = "#D3D9A7")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#2A330E", "Post" = "#5d634c")) +
+  coord_flip()
+
+shrimp_out_fig_control
+```
+
+####2.4.3.3 Plotting 4-stroke estimates and raw data
+```{r}
+shrimp_four_raw_data <- final_df |> 
+  filter(stroke =="4") |> 
+  rename(.value = shrimp_out)
+
+shrimp_four_raw_data$stage <- factor(shrimp_four_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+#assigning a value for the baseline mean
+shrimp_out_model_estimates_four_intercept <- shrimp_out_model_estimates_four %>%
+  filter(stage == "Pre") %>%
+  pull(.value)
+
+shrimp_out_fig_four <- ggplot(shrimp_four_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_hline(yintercept = shrimp_out_model_estimates_four_intercept, linetype = "dashed")+
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_out_model_estimates_four, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = shrimp_out_model_estimates_four, size = 2, position = position_nudge(x = 0.5)) +
+  ylab("Proportion of time spent out of the burrow")+
+  theme(legend.position = "none", 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        axis.title.x = element_text(size = 13, face = "bold", margin = margin(t = 15, b = 0, l = 0, r = 0)),
+        plot.title = element_textbox_simple(face = "bold", size = 14, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#F6BC65", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"),
+        plot.background = element_rect(fill = NA, colour = NA))+
+  ggtitle("4-stroke")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#F29E00", "Post" = "#F2D5A0")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#805213", "Post" = "#70532b")) +
+  coord_flip()
+
+shrimp_out_fig_four
+```
+
+####2.4.3.4 Plotting 2-stroke estimates and raw data
+```{r}
+shrimp_two_raw_data <- final_df |> 
+  filter(stroke =="2") |> 
+  rename(.value = shrimp_out)
+
+#reordering the levels 
+shrimp_two_raw_data$stage <- factor(shrimp_two_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+#assigning a value for the baseline mean
+shrimp_out_model_estimates_two_intercept <- shrimp_out_model_estimates_two %>%
+  filter(stage == "Pre") %>%
+  pull(.value)
+
+shrimp_out_fig_two <- ggplot(shrimp_two_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_hline(yintercept = shrimp_out_model_estimates_two_intercept, linetype = "dashed")+
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_out_model_estimates_two, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = shrimp_out_model_estimates_two, size = 2, position = position_nudge(x = 0.5)) +
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        plot.title = element_textbox_simple(face = "bold", size = 14, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#EB9063", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"),
+        plot.background = element_rect(fill = NA, colour = NA))+
+  ggtitle("2-stroke")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#E25A00", "Post" = "#F2B389")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#542709", "Post" = "#66422a")) +
+  coord_flip()
+
+shrimp_out_fig_two
+```
+
+####2.4.3.5 Combining plots into one window
+```{r}
+shrimp_out_plot <- shrimp_out_fig_control + shrimp_out_fig_four + shrimp_out_fig_two + 
+  plot_layout(ncol = 3)
+
+shrimp_out_plot
+
+ggsave("shrimp_out_plot.png", plot = shrimp_out_plot, units = "px", width = 1500, height = 800, dpi = 320, scale = 2)
+
+```
+
+###2.4.4 Modelling the effect of covariates on the proportion of time gobies spent outside of the burrow
+####2.4.4.1 Goby number
+```{r}
+shrimp_out_goby_number_contrasts <- shrimp_out_model |>
+  emmeans(~ goby_number, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+shrimp_out_goby_number_contrasts
+```
+
+####2.4.4.2 Shrimp number
+```{r}
+shrimp_out_shrimp_number_contrasts <- shrimp_out_model |>
+  emmeans(~ shrimp_number, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+shrimp_out_shrimp_number_contrasts
+
+shrimp_out_shrimp_number_estimates <- shrimp_out_model |>
+  emmeans(~ shrimp_number, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000)
+
+shrimp_out_shrimp_number_estimates
+
+shrimp_out_shrimp_number_contrasts <- shrimp_out_model |>
+  emmeans(~ shrimp_number, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") |> 
+  gather_emmeans_draws()
+
+ggplot(data = shrimp_out_shrimp_number_contrasts, aes(x = contrast, y = .value )) +
+  stat_halfeye()
+```
+####2.4.4.3 Shrimp species
+```{r}
+shrimp_out_shrimp_species_contrasts <- shrimp_out_model |>
+  emmeans(~ shrimp_species, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+shrimp_out_shrimp_species_contrasts
+
+shrimp_out_shrimp_species_contrasts <- shrimp_out_model |>
+  emmeans(~ shrimp_species, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") |> 
+  gather_emmeans_draws()
+
+ggplot(data = shrimp_out_shrimp_species_contrasts, aes(x = contrast, y = .value )) +
+  stat_halfeye()
+```
+
+##2.5 Modelling the proportion of time shrimp spent in contact with the goby
+###2.5.1 Checking the response variable distribution
+```{r}
+shrimp_contact_df <- final_df |> 
+  mutate(is_zero = shrimp_contact == 0)
+
+shrimp_contact_plot <- shrimp_contact_df |> 
+  mutate(shrimp_contact = ifelse(is_zero, -0.1, shrimp_contact)) |> 
+  ggplot(aes(x = shrimp_contact)) +
+  geom_histogram(aes(fill = is_zero), binwidth = 0.05, 
+                 boundary = 0, color = "white") +
+  geom_vline(xintercept = 0)
+shrimp_contact_plot
+# Distribution is a zero-one inflated beta distribution, because the value for shrimp_contact is bounded by 0-1 as it is a proportion of the total time and there is values of 0 and 1.
+```
+
+###2.5.2 Running the model
+```{r}
+shrimp_contact_model <- brm(
+  bf(shrimp_contact ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+     phi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+     zoi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+     coi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow)
+     ),
+  data = final_df,
+  prior = priors,
+  family = zero_one_inflated_beta(),
+  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  chains = 4, iter = 6000, warmup = 1000, seed = 12345, backend = "cmdstanr", cores = 4, threads = threading(2),
+  file = "shrimp_contact_model"
+)
+
+summary(shrimp_contact_model)
+```
+
+###2.5.3 Model fit and diagnostics
+####2.5.3.1 Model convergence
+```{r}
+extract_rhats(shrimp_contact_model)
+```
+
+####2.5.3.2 Model fit
+```{r}
+#posterior predictive checks
+pp_check(shrimp_contact_model)
+
+pp_check(shrimp_contact_model, type='stat', stat='mean')
+
+#fitted vs predicted values
+summary(fitted(shrimp_contact_model))
+summary(predict(shrimp_contact_model))
+```
+
+###2.5.2 Posterior marginal effects
+####2.5.2.1 Pairwise contrasts of stroke and stage
+```{r}
+shrimp_contact_contrasts <- shrimp_contact_model |>
+  emmeans(~ stroke*stage, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+# Extract the relevant contrast information
+shrimp_contact_contrasts <- as.data.frame(shrimp_contact_contrasts) |> 
+  filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
+
+shrimp_contact_contrasts
+
+shrimp_contact_contrasts_draws <- shrimp_contact_model  |>
+  emmeans(~ stroke*stage, 
+          epred = TRUE,
+          re_formula = NA) |> 
+  contrast(method = "revpairwise") |> 
+  gather_emmeans_draws()
+
+shrimp_contact_temporal_contrasts <- shrimp_contact_contrasts_draws |> 
+  filter(contrast %in% c("control Pre - control During", "control Pre - control Post","control Post - control During" , "4 Pre - 4 During", "4 Pre - 4 Post", "4 Post - 4 During", "2 Pre - 2 During", "2 Pre - 2 Post", "2 Post - 2 During")) |> 
+  mutate(stroke = ifelse(contrast %in% c("control Pre - control During", "control Pre - control Post","control Post - control During"), "Control", ifelse(contrast %in% c("4 Pre - 4 During", "4 Pre - 4 Post", "4 Post - 4 During"), "4", "2")))
+
+shrimp_contact_temporal_contrasts$stroke <- factor(shrimp_contact_temporal_contrasts$stroke, levels = c("Control", "4", "2"))
+
+shrimp_contact_temporal_fig<- ggplot(shrimp_contact_temporal_contrasts, aes(x = .value, y = factor(contrast, levels = c("control Pre - control During", "control Pre - control Post","control Post - control During" , "4 Pre - 4 During", "4 Pre - 4 Post", "4 Post - 4 During", "2 Pre - 2 During", "2 Pre - 2 Post", "2 Post - 2 During")), color = stroke, fill = stroke)) +
+   geom_vline(xintercept = 0, color = "black", size = 0.5) +
+  stat_halfeye(.width = c(0.89, 0.95)) +
+  scale_color_manual(values = c(colour11, colour12, colour13)) +
+  scale_fill_manual(values = alpha(c(colour1, colour2, colour3), 0.8)) +
+  labs(x = "Difference in the proportion of time spent out of the burrow",
+       y = "Contrasts of the time periods relative to noise exposure",
+       fill = "Noise treatment", color = "Noise treatment",
+       fill_ramp = "Credible interval") +
+  coord_flip() +
+  theme(legend.position = "top", 
+        axis.text.x = element_text(angle = 50, hjust =1)) +
+  scale_y_discrete(labels = c("Pre - During", "Pre - Post","Post - During" , "Pre - During", "Pre - Post", "Post - During", "Pre - During", "Pre - Post", "Post - During")) +
+  scale_x_continuous(breaks = seq(-0.2, 0.3, 0.1), labels = c("-0.2","-0.1" , "0", "0.1", "0.2", "0.3"), limits = c(-0.2, 0.3)) 
+
+
+shrimp_contact_temporal_fig
+```
+
+###2.5.3 Plot of raw data and predicted estimates
+####2.5.3.1 Extracting model estimates
+```{r}
+
+shrimp_contact_model_estimates <- shrimp_contact_model |> 
+  emmeans(~ stroke*stage,
+          epred = TRUE,
+          rg.limit = 14000,
+          re_formula = NA)
+
+shrimp_contact_model_estimates <- as.data.frame(shrimp_contact_model_estimates)
+
+shrimp_contact_model_estimates
+
+write.csv(shrimp_contact_model_estimates, "shrimp_contact_model_estimates.csv")
+
+shrimp_contact_model_estimates_control <- shrimp_contact_model_estimates |> 
+  filter(stroke == "control") |> 
+  rename(.value = emmean)
+
+shrimp_contact_model_estimates_four <- shrimp_contact_model_estimates |> 
+  filter(stroke == "4")|> 
+  rename(.value = emmean)
+
+shrimp_contact_model_estimates_two <- shrimp_contact_model_estimates |> 
+  filter(stroke == "2")|> 
+  rename(.value = emmean)
+
+```
+
+####2.5.3.2 Plotting control estimates and raw data
+```{r}
+shrimp_contact_control_raw_data <- final_df |> 
+  filter(stroke =="control") |> 
+  rename(.value = shrimp_contact)
+
+shrimp_contact_control_raw_data$stage <- factor(shrimp_contact_control_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+shrimp_contact_fig_control <- ggplot(shrimp_contact_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_contact_model_estimates_control, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = shrimp_contact_model_estimates_control, size = 2, position = position_nudge(x = 0.5)) +
+    theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        plot.title = element_textbox_simple(size = 12, halign = 0.5, linewidth = 0.5, linetype = 1, color = "black", fill = "#A3C088", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"))+
+  ggtitle("Control")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#76A34A", "Post" = "#D3D9A7")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#2A330E", "Post" = "#5d634c")) +
+  coord_flip()
+
+shrimp_contact_fig_control
+```
+
+####2.5.3.3 Plotting 4-stroke estimates and raw data
+```{r}
+shrimp_contact_four_raw_data <- final_df |> 
+  filter(stroke =="4") |> 
+  rename(.value = shrimp_contact)
+
+shrimp_contact_four_raw_data$stage <- factor(shrimp_contact_four_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+shrimp_contact_fig_four <- ggplot(shrimp_contact_four_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_contact_model_estimates_four, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = shrimp_contact_model_estimates_four, size = 2, position = position_nudge(x = 0.5)) +
+    theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        plot.title = element_textbox_simple(size = 12, halign = 0.5, linewidth = 0.5, linetype = 1, color = "black", fill = "#F6BC65", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"))+
+  ggtitle("4-stroke")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#F29E00", "Post" = "#F2D5A0")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#805213", "Post" = "#70532b")) +
+  coord_flip()
+
+shrimp_contact_fig_four
+```
+
+####2.5.3.4 Plotting 2-stroke estimates and raw data
+```{r}
+shrimp_contact_two_raw_data <- final_df |> 
+  filter(stroke =="2") |> 
+  rename(.value = shrimp_contact)
+
+shrimp_contact_two_raw_data$stage <- factor(shrimp_contact_two_raw_data$stage, levels = c("Post", "During", "Pre"))
+
+shrimp_contact_fig_two <- ggplot(shrimp_contact_two_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
+  geom_violin(alpha = 0.7, size = 0) +
+  geom_jitter(width = 0.1) +
+  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_contact_model_estimates_two, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.5))+
+  geom_point(pch = 23, stroke = 1.2, data = shrimp_contact_model_estimates_two, size = 2, position = position_nudge(x = 0.5)) +
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(), 
+        plot.title = element_textbox_simple(size = 12, halign = 0.5, linewidth = 0.5, linetype = 1, color = "black", fill = "#EB9063", padding = margin(5, 5, 5, 5)), 
+        panel.background = element_rect(fill = "white", colour = "black"),
+        panel.grid.major.x = element_line(colour = "#ededed"))+
+  ggtitle("2-stroke")+
+  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#E25A00", "Post" = "#F2B389")) +
+  scale_color_manual(values = c("Pre" = "#242424", "During" = "#542709", "Post" = "#66422a")) +
+  coord_flip()
+
+shrimp_contact_fig_two
+```
+
+####2.5.3.5 Combining plots into one window
+```{r}
+# Combine the plots
+shrimp_contact_plot <- shrimp_contact_fig_control + shrimp_contact_fig_four + shrimp_contact_fig_two + 
+  plot_layout(ncol = 3)
+
+# Display the combined plot
+shrimp_contact_plot
+```
+###2.5.4 Modelling the effect of covariates on the proportion of time spent in contact
+####2.5.4.1 Goby number
+```{r}
+shrimp_contact_goby_number_contrasts <- shrimp_contact_model |>
+  emmeans(~ goby_number, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+shrimp_contact_goby_number_contrasts
+```
+
+####2.5.4.2 Shrimp number
+```{r}
+shrimp_contact_shrimp_number_contrasts <- shrimp_contact_model |>
+  emmeans(~ shrimp_number, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+shrimp_contact_shrimp_number_contrasts
+```
+
+####2.5.4.2 Shrimp species
+```{r}
+shrimp_contact_shrimp_species_contrasts <- shrimp_contact_model |>
+  emmeans(~ shrimp_species, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+shrimp_contact_shrimp_species_contrasts
+```
+
+####2.5.4.3 Overall model estimate for the proportion of time shrimp spent in contact with a goby
+```{r}
+shrimp_contact_model |>
+  emmeans(~ 1, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000)
+```
+
