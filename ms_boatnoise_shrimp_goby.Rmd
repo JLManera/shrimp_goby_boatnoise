@@ -56,6 +56,7 @@ BORIS_output <- read.csv("./2-data/BORIS_output_update.csv")
 #reading in the decoder
 Video_codes <- read.csv("./2-data/Video_codes.csv")
 
+#reading in shrimp species information
 shrimp_species <- read.csv("./2-data/species.csv")
 
 
