@@ -16,6 +16,19 @@ output:
     toc: yes
 ---
 
+```{r setup, include = FALSE}
+#kniter seetting
+knitr::opts_chunk$set(
+message = FALSE,
+warning = FALSE, # no warnings
+cache = TRUE,# Cacheing to save time when kniting
+tidy = TRUE
+)
+
+# clearning up
+#rm(list=ls())
+```
+
 #1. Data wrangling
 ##1.1 Loading the required packages
 ```{r, message=FALSE, results='hide'}
