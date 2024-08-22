@@ -16,8 +16,6 @@ output:
     toc: yes
 ---
 
-This is a test from the cooding god
-
 ```{r setup, include = FALSE}
 #kniter setting
 knitr::opts_chunk$set(
