@@ -58,7 +58,6 @@ Video_codes <- read.csv("./2-data/Video_codes.csv")
 
 shrimp_species <- read.csv("./2-data/species.csv")
 
-length(unique(BORIS_output$code))
 
 #binding the decoder to the BORIS output and revealing the treatment and stage
 BORIS_output$code <- str_sub(BORIS_output$video_id, 2,)
