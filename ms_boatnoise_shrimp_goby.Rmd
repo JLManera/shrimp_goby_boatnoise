@@ -48,15 +48,15 @@ colour13 <- "#9C4811"
 ##1.2 Unblinding the data
 ```{r}
 #assigning the directory so that the code can be universally read on any computer as long as the entire project file is shared
-directory <- './1-data/'
+directory <- './2-data/'
 
 #reading in the coded raw BORIS output
-BORIS_output <- read.csv("./1-data/BORIS_output_update.csv")
+BORIS_output <- read.csv("./2-data/BORIS_output_update.csv")
 
 #reading in the decoder
-Video_codes <- read.csv("./1-data/Video_codes.csv")
+Video_codes <- read.csv("./2-data/Video_codes.csv")
 
-shrimp_species <- read.csv("./1-data/species.csv")
+shrimp_species <- read.csv("./2-data/species.csv")
 
 length(unique(BORIS_output$code))
 
