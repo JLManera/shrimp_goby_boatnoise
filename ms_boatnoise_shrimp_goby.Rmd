@@ -1,6 +1,6 @@
 ---
 title: "shrimp_goby_boatnoise"
-author: "Jack Manera"
+author: "Jack L Manera & Jake M Martin"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
   html_document:
@@ -19,16 +19,13 @@ output:
 This is a test from the cooding god
 
 ```{r setup, include = FALSE}
-#kniter seetting
+#kniter setting
 knitr::opts_chunk$set(
 message = FALSE,
 warning = FALSE, # no warnings
 cache = TRUE,# Cacheing to save time when kniting
 tidy = TRUE
 )
-
-# clearning up
-#rm(list=ls())
 ```
 
 #1. Data wrangling
