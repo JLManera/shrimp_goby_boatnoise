@@ -58,7 +58,7 @@ Video_codes <- read.csv("./2-data/Video_codes.csv")
 
 #reading in shrimp species information
 shrimp_species <- read.csv("./2-data/species.csv")
-
+#error fishing
 #binding the decoder to the BORIS output and revealing the treatment and stage
 BORIS_output$code <- str_sub(BORIS_output$video_id, 2,)
 BORIS_output$code <- as.factor(BORIS_output$code)
