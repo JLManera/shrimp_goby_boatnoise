@@ -4,6 +4,7 @@
 .Ruserdata
 .DS_Store
 .gitignore
+prior_check.rds
 shrimp_contact_model.rds
 shrimp_out_model.rds
 goby_out_model.rds
