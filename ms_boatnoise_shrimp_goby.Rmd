@@ -357,7 +357,7 @@ loc_student_t <- 0
 scale_student_t <- 2.5
 
 loc_normal <- 0
-scale_normal <- 5
+scale_normal <- 3
 
 # Calculate PDFs
 pdf_logistic <- dlogis(x, location = loc_logistic, scale = scale_logistic)
@@ -369,11 +369,11 @@ df <- data.frame(x = x, Logistic = pdf_logistic, Student_t = pdf_student_t, Norm
 ggplot(df, aes(x)) +
   geom_line(aes(y = Logistic, color = "Logistic(0, 3)")) + # Default priors of Logistic(0,1) have been broadened as these priors seemed too restrictive
   geom_line(aes(y = Student_t, color = "Student_t(3, 0, 2.5)")) +
-  geom_line(aes(y = Normal, color = "Normal(0, 5)")) + #For the beta coefficient prior, we will set it to be normally distributed around 0 with an sd of 5, here is the plotted prior distribution 
+  geom_line(aes(y = Normal, color = "Normal(0, 3)")) + #For the beta coefficient prior, we will set it to be normally distributed around 0 with an sd of 5, here is the plotted prior distribution 
   labs(title = "Probability Density Functions",
        x = "x",
        y = "Probability Density") +
-  scale_color_manual(name = "Distribution", values = c("Logistic(0, 3)" = "blue", "Student_t(3, 0, 2.5)" = "green", "Normal(0, 5)" = "red")) +
+  scale_color_manual(name = "Distribution", values = c("Logistic(0, 3)" = "blue", "Student_t(3, 0, 2.5)" = "green", "Normal(0, 3)" = "red")) +
   theme_minimal()
 ```
 
@@ -388,10 +388,10 @@ priors <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
             set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "phi", lb = 0),
             set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "zoi", lb = 0),
             set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "coi", lb = 0),
-            set_prior("normal(0, 5)", class = "b"),
-            set_prior("normal(0, 5)", class = "b", dpar = "phi"),
-            set_prior("normal(0, 5)", class = "b", dpar = "zoi"),
-            set_prior("normal(0, 5)", class = "b", dpar = "coi"))
+            set_prior("normal(0, 3)", class = "b"),
+            set_prior("normal(0, 3)", class = "b", dpar = "phi"),
+            set_prior("normal(0, 3)", class = "b", dpar = "zoi"),
+            set_prior("normal(0, 3)", class = "b", dpar = "coi"))
 ```
 
 ###2.2.5 Prior predictive check 
@@ -419,7 +419,7 @@ prior_model <- brm(
   chains = 4, iter = 1000, warmup = 100,
   cores = 4, threads = threading(2),
   backend = "cmdstanr",
-  seed = 12345,
+  seed = 1,
   sample_prior = "only",
   file = "prior_check"
 )
@@ -454,9 +454,8 @@ goby_out_model <- brm(
   chains = 4, iter = 4000, warmup = 1000,
   cores = 4, threads = threading(2),
   backend = "cmdstanr",
-  seed = 12345,
-  file = "goby_out_model",
-  
+  seed = 1,
+  file = "goby_out_model"
 )
 
 summary(goby_out_model)
@@ -677,6 +676,7 @@ goby_out_fig_control <- ggplot(goby_control_raw_data, aes(y = .value, x = stage,
         axis.title.x = element_blank(), 
         axis.text.x = element_text(size = 13),  
         axis.text.y = element_text(size = 13),
+        panel.grid = element_blank(),
         axis.title.y = element_text(size = 16, face = "bold", margin = margin(t = 0, b = 0, l = 0, r = 10)),
         plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#A3C088", padding = margin(5, 5, 5, 5)), 
         panel.background = element_rect(fill = "white", colour = "black"),
@@ -714,6 +714,7 @@ goby_out_fig_four <- ggplot(goby_four_raw_data, aes(y = .value, x = stage, fill 
         axis.text.x = element_text(size = 13),  
         axis.text.y = element_blank(), 
         axis.ticks.y = element_blank(), 
+        panel.grid = element_blank(),
         axis.title.x = element_text(size = 16, face = "bold", margin = margin(t = 15, b = 0, l = 0, r = 0)),
         plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#F6BC65", padding = margin(5, 5, 5, 5)), 
         panel.background = element_rect(fill = "white", colour = "black"),
@@ -752,6 +753,7 @@ goby_out_fig_two <- ggplot(goby_two_raw_data, aes(y = .value, x = stage, fill = 
         axis.title.y = element_blank(), 
         axis.text.y = element_blank(), 
         axis.ticks.y = element_blank(), 
+        panel.grid = element_blank(),
         plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#EB9063", padding = margin(5, 5, 5, 5)), 
         panel.background = element_rect(fill = "white", colour = "black"),
         plot.background = element_rect(fill = NA, colour = NA))+
@@ -767,12 +769,17 @@ goby_out_plot3 <- goby_out_fig_control + goby_out_fig_four + goby_out_fig_two +
   plot_layout(ncol = 3)
 
 goby_out_plot3
-ggsave("./3-figs/goby_out_plot3.png", plot = goby_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./3-figs/goby_out_plot3.jpeg", plot = goby_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 ###2.3.4 Effects of covariates on the proportion of time gobies spent outside of the burrow
 ####2.3.4.1 Goby number
 ```{r}
+goby_out_model |>
+  emmeans(~ goby_number, 
+          epred = TRUE,
+          re_formla = NULL)
+
 goby_out_goby_number <- goby_out_model |>
   emmeans(~ goby_number, 
           epred = TRUE,
@@ -898,7 +905,7 @@ shrimp_out_model <- brm(
   chains = 4, iter = 4000, warmup = 1000,
   cores = 4, threads = threading(2),
   backend = "cmdstanr",
-  seed = 12345,
+  seed = 1,
   file = "shrimp_out_model"
 )
 
@@ -926,6 +933,8 @@ summary(predict(shrimp_out_model))
 ###2.4.2 Posterior marginal effects
 ####2.4.2.1 Pairwise contrasts of stroke and stage
 ```{r}
+ranef(shrimp_out_model)
+
 shrimp_out_contrasts <- shrimp_out_model |>
   emmeans(~ stroke*stage, 
           epred = TRUE,
@@ -1104,6 +1113,7 @@ shrimp_out_fig_control <- ggplot(shrimp_control_raw_data, aes(y = .value, x = st
         axis.title.x = element_blank(), 
         axis.text.x = element_text(size = 13),  
         axis.text.y = element_text(size = 13),
+        panel.grid = element_blank(),
         axis.title.y = element_text(size = 16, face = "bold", margin = margin(t = 0, b = 0, l = 0, r = 10)),
         plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#A3C088", padding = margin(5, 5, 5, 5)), 
         panel.background = element_rect(fill = "white", colour = "black"),
@@ -1141,6 +1151,7 @@ shrimp_out_fig_four <- ggplot(shrimp_four_raw_data, aes(y = .value, x = stage, f
         axis.text.x = element_text(size = 13),  
         axis.text.y = element_blank(), 
         axis.ticks.y = element_blank(), 
+        panel.grid = element_blank(),
         axis.title.x = element_text(size = 16, face = "bold", margin = margin(t = 15, b = 0, l = 0, r = 0)),
         plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#F6BC65", padding = margin(5, 5, 5, 5)), 
         panel.background = element_rect(fill = "white", colour = "black"),
@@ -1179,6 +1190,7 @@ shrimp_out_fig_two <- ggplot(shrimp_two_raw_data, aes(y = .value, x = stage, fil
         axis.title.y = element_blank(), 
         axis.text.y = element_blank(), 
         axis.ticks.y = element_blank(), 
+        panel.grid = element_blank(),
         plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#EB9063", padding = margin(5, 5, 5, 5)), 
         panel.background = element_rect(fill = "white", colour = "black"),
         plot.background = element_rect(fill = NA, colour = NA))+
@@ -1194,7 +1206,7 @@ shrimp_out_plot3 <- shrimp_out_fig_control + shrimp_out_fig_four + shrimp_out_fi
   plot_layout(ncol = 3)
 
 shrimp_out_plot3
-ggsave("./3-figs/shrimp_out_plot3.png", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./3-figs/shrimp_out_plot3.jpeg", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 ###2.4.4 Effects of covariates on the proportion of time shrimp spent outside of the burrow
@@ -1229,7 +1241,7 @@ shrimp_out_shrimp_number_estimates <- shrimp_out_model |>
 
 shrimp_out_shrimp_number_estimates
 
-shrimp_out_shrimp_number_contrasts <- shrimp_out_model |>
+shrimp_out_shrimp_number_contrast_draws <- shrimp_out_model |>
   emmeans(~ shrimp_number, 
           epred = TRUE,
           re_formla = NULL,
@@ -1237,7 +1249,7 @@ shrimp_out_shrimp_number_contrasts <- shrimp_out_model |>
   contrast(method = "revpairwise") |> 
   gather_emmeans_draws()
 
-ggplot(data = shrimp_out_shrimp_number_contrasts, aes(x = contrast, y = .value )) +
+ggplot(data = shrimp_out_shrimp_number_contrast_draws, aes(x = contrast, y = .value )) +
   stat_halfeye()
 ```
 ####2.4.4.3 Shrimp species
@@ -1251,7 +1263,7 @@ shrimp_out_shrimp_species_contrasts <- shrimp_out_model |>
 
 shrimp_out_shrimp_species_contrasts
 
-shrimp_out_shrimp_species_contrasts <- shrimp_out_model |>
+shrimp_out_shrimp_species_contrasts_draws <- shrimp_out_model |>
   emmeans(~ shrimp_species, 
           epred = TRUE,
           re_formla = NULL,
@@ -1259,7 +1271,7 @@ shrimp_out_shrimp_species_contrasts <- shrimp_out_model |>
   contrast(method = "revpairwise") |> 
   gather_emmeans_draws()
 
-ggplot(data = shrimp_out_shrimp_species_contrasts, aes(x = contrast, y = .value )) +
+ggplot(data = shrimp_out_shrimp_species_contrasts_draws, aes(x = contrast, y = .value )) +
   stat_halfeye()
 ```
 
@@ -1291,7 +1303,7 @@ shrimp_contact_model <- brm(
   prior = priors,
   family = zero_one_inflated_beta(),
   control = list(adapt_delta = 0.99, max_treedepth = 12),
-  chains = 4, iter = 6000, warmup = 1000, seed = 12345, backend = "cmdstanr", cores = 4, threads = threading(2),
+  chains = 4, iter = 6000, warmup = 1000, seed = 1, backend = "cmdstanr", cores = 4, threads = threading(2),
   file = "shrimp_contact_model"
 )
 
@@ -1369,6 +1381,12 @@ shrimp_contact_temporal_fig
 ```{r}
 shrimp_contact_model_estimates <- shrimp_contact_model |> 
   emmeans(~ stroke*stage,
+          epred = TRUE,
+          rg.limit = 14000,
+          re_formula = NA)
+
+shrimp_contact_model |> 
+  emmeans(~ 1,
           epred = TRUE,
           rg.limit = 14000,
           re_formula = NA)
@@ -1587,7 +1605,7 @@ shrimp_contact_plot3 <- shrimp_contact_fig_control + shrimp_contact_fig_four + s
   plot_layout(ncol = 3)
 
 shrimp_contact_plot3
-ggsave("./3-figs/shrimp_contact_plot3.png", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./3-figs/shrimp_contact_plot3.jpeg", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 ###2.5.4 Modelling the effect of covariates on the proportion of time spent in contact
@@ -1627,383 +1645,210 @@ shrimp_contact_shrimp_species_contrasts <- shrimp_contact_model |>
 shrimp_contact_shrimp_species_contrasts
 ```
 
-#Alternate graphs
-## Goby out
+#3 Manuscript output files
+##3.1 Supp tables
+###3.1.1 Model estimates
 ```{r}
-goby_out_model_draws <- goby_out_model |> 
-  emmeans(~ stroke*stage,
-          epred = TRUE,
-          rg.limit = 14000,
-          re_formula = NA) |> 
-  gather_emmeans_draws()
+goby_out_model_estimates <- goby_out_model_estimates |> 
+  mutate(`Behavioural measure` = "Proportion of time gobies spent outside of the burrow")
+  
+shrimp_out_model_estimates <- shrimp_out_model_estimates |> 
+  mutate(`Behavioural measure` = "Proportion of time shrimp spent outside of the burrow")
+  
+shrimp_contact_model_estimates <- shrimp_contact_model_estimates |> 
+  mutate(`Behavioural measure` = "Proportion of time shrimp spent in contact with a goby")
+  
+model_estimates <- bind_rows(goby_out_model_estimates, 
+                             shrimp_out_model_estimates, 
+                             shrimp_contact_model_estimates)
 
-goby_out_raw_data <- final_df |>
-  rename(.value = goby_out)
+model_estimates <- model_estimates |>
+  mutate(stroke = ifelse(stroke == "4", "4-stroke", ifelse(stroke == "2", "2-stroke", "control")),
+         stroke = factor(stroke, levels = c("control", "4-stroke", "2-stroke")),
+         stage = factor(stage, levels = c("Pre", "During", "Post")),
+         `Behavioural measure` = factor(`Behavioural measure`, levels = c("Proportion of time gobies spent outside of the burrow", "Proportion of time shrimp spent outside of the burrow", "Proportion of time shrimp spent in contact with a goby"))) |>
+  arrange(`Behavioural measure`, stage, stroke) |> 
+  rename(`Estimated marginal mean` = emmean,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Phase = stage,
+         `Noise exposure` = stroke) |> 
+  select(c(`Behavioural measure`, Phase, `Noise exposure`, `Estimated marginal mean`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-goby_out_model_draws$stage <- factor(goby_out_model_draws$stage, levels = c("Pre", "During", "Post"))
-goby_out_model_draws$stroke <- factor(goby_out_model_draws$stroke, levels = c("control", "4", "2"))
-
-goby_out_control_model_draws <- goby_out_model_draws |> 
-  dplyr::filter(stroke == "control")
-
-goby_control_raw_data <- final_df |> 
-  dplyr::filter(stroke =="control") |> 
-  rename(.value = goby_out)
-
-goby_control_means <- goby_control_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
-
-goby_control_raw_data$stage <- factor(goby_control_raw_data$stage, levels = c("Pre", "During", "Post"))
-
-#assigning a value for the baseline mean
-goby_out_model_estimates_control_intercept <- goby_out_model_estimates_control %>%
-  dplyr::filter(stage == "Pre") %>%
-  pull(.value)
-
-goby_out_fig_control2 <- ggplot(goby_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = goby_out_model_estimates_control, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = goby_out_model_estimates_control, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = goby_control_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  labs(x="Period relative to treatment",
-       y="Proportion of time out of burrow") +
-  theme(legend.position = "none", 
-        axis.title.x = element_blank(), 
-        axis.text.x = element_text(size = 13),  
-        axis.text.y = element_text(size = 13),
-        axis.title.y = element_text(size = 16, face = "bold", margin = margin(t = 0, b = 0, l = 0, r = 10)),
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#A3C088", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("Control")+
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#76A34A", "Post" = "#D3D9A7")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#2A330E", "Post" = "#5d634c"))
-
-goby_out_fig_control
-
-goby_out_control_model_draws <- goby_out_model_draws |> 
-  dplyr::filter(stroke == "4")
-
-goby_four_raw_data <- final_df |> 
-  dplyr::filter(stroke =="4") |> 
-  rename(.value = goby_out)
-
-goby_four_raw_data$stage <- factor(goby_four_raw_data$stage, levels = c("Pre", "During", "Post"))
-
-goby_four_means <- goby_four_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
-
-goby_out_fig_four2 <- ggplot(goby_four_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = goby_out_model_estimates_four, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = goby_out_model_estimates_four, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = goby_four_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  xlab("Experimental phase relative to noise exposure")+
-  theme(legend.position = "none", 
-        axis.title.y = element_blank(),  
-        axis.text.x = element_text(size = 13),  
-        axis.text.y = element_blank(), 
-        axis.ticks.y = element_blank(), 
-        axis.title.x = element_text(size = 16, face = "bold", margin = margin(t = 15, b = 0, l = 0, r = 0)),
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#F6BC65", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("4-stroke")+
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#F29E00", "Post" = "#F2D5A0")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#805213", "Post" = "#70532b"))
-
-goby_out_fig_four
-
-goby_out_control_model_draws <- goby_out_model_draws |> 
-  dplyr::filter(stroke == "2")
-
-goby_two_raw_data <- final_df |> 
-  dplyr::filter(stroke =="2") |> 
-  rename(.value = goby_out)
-
-goby_two_raw_data$stage <- factor(goby_two_raw_data$stage, levels = c("Pre", "During", "Post"))
-
-goby_two_means <- goby_two_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
-
-goby_out_fig_two2 <- ggplot(goby_two_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = goby_out_model_estimates_two, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = goby_out_model_estimates_two, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = goby_two_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  theme(legend.position = "none", 
-        axis.title.x = element_blank(),  
-        axis.text.x = element_text(size = 13),
-        axis.title.y = element_blank(), 
-        axis.text.y = element_blank(), 
-        axis.ticks.y = element_blank(), 
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#EB9063", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("2-stroke") +
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#E25A00", "Post" = "#F2B389")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#542709", "Post" = "#66422a"))
-
-goby_out_fig_two
-
-goby_out_plot2 <- goby_out_fig_control2 + goby_out_fig_four2 + goby_out_fig_two2 + 
-  plot_layout(ncol = 3)
-
-goby_out_plot2
-ggsave("./3-figs/goby_out_plot2.png", plot = goby_out_plot2, units = "px", width = 2200, height = 1400, dpi = 300)
+write_csv(model_estimates, "./2-data/model_estimates.csv")
 ```
 
-##Shrmip out
+###3.1.2 Pairwise contrasts
 ```{r}
-shrimp_out_model_draws <- shrimp_out_model |> 
-  emmeans(~ stroke*stage,
-          epred = TRUE,
-          rg.limit = 14000,
-          re_formula = NA) |> 
-  gather_emmeans_draws()
+#goby out
+goby_out_contrasts <- goby_out_results.table |> 
+  mutate(`Predictor variable` = "Treatment and phase interaction",
+         contrast = str_replace_all(contrast, "\\b2\\b", "2-Stroke"),
+         contrast = str_replace_all(contrast, "\\b4\\b", "4-Stroke"),
+         contrast = str_replace_all(contrast, "\\bcontrol\\b", "Control")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_out_raw_data <- final_df |>
-  rename(.value = shrimp_out)
+goby_out_goby_number1 <- goby_out_goby_number |>
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Number of gobies",
+         contrast = str_replace_all(contrast, "\\bgoby_number2\\b", "2 gobies"),
+         contrast = str_replace_all(contrast, "\\bgoby_number1\\b", "1 goby")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
+  
+goby_out_shrimp_number1 <- goby_out_shrimp_number |> 
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Number of shrimp",
+         contrast = str_replace_all(contrast, "\\bshrimp_number2\\b", "2 shrimp"),
+         contrast = str_replace_all(contrast, "\\bshrimp_number1\\b", "1 shrimp"),
+         contrast = str_replace_all(contrast, "\\bshrimp_number3\\b", "3 shrimp")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_out_model_draws$stage <- factor(shrimp_out_model_draws$stage, levels = c("Pre", "During", "Post"))
-shrimp_out_model_draws$stroke <- factor(shrimp_out_model_draws$stroke, levels = c("control", "4", "2"))
+goby_out_shrimp_species1 <- goby_out_shrimp_species |> 
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Shrimp species"
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_out_control_model_draws <- shrimp_out_model_draws |> 
-  dplyr::filter(stroke == "control")
+goby_out_contrasts_table <- rbind(goby_out_contrasts, goby_out_goby_number1, goby_out_shrimp_number1, goby_out_shrimp_species1) |>
+  mutate(
+    `Estimated marginal difference` = round(`Estimated marginal difference`, 3),
+    `Lower 95% CrI` = round(`Lower 95% CrI`, 3),
+    `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
+  )
 
-shrimp_control_raw_data <- final_df |> 
-  dplyr::filter(stroke =="control") |> 
-  rename(.value = shrimp_out)
+write_csv(goby_out_contrasts_table, "./2-data/goby_out_contrasts_table.csv")
 
-shrimp_control_means <- shrimp_control_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
+#shrimp out
+shrimp_out_contrasts1 <- shrimp_out_contrasts |> 
+  mutate(`Predictor variable` = "Treatment and phase interaction",
+         contrast = str_replace_all(contrast, "\\b2\\b", "2-Stroke"),
+         contrast = str_replace_all(contrast, "\\b4\\b", "4-Stroke"),
+         contrast = str_replace_all(contrast, "\\bcontrol\\b", "Control")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_control_raw_data$stage <- factor(shrimp_control_raw_data$stage, levels = c("Pre", "During", "Post"))
+shrimp_out_goby_number_contrasts1 <- shrimp_out_goby_number_contrasts |>
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Number of gobies",
+         contrast = str_replace_all(contrast, "\\bgoby_number2\\b", "2 gobies"),
+         contrast = str_replace_all(contrast, "\\bgoby_number1\\b", "1 goby")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
+  
+shrimp_out_shrimp_number_contrasts1 <- shrimp_out_shrimp_number_contrasts |> 
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Number of shrimp",
+         contrast = str_replace_all(contrast, "\\bshrimp_number2\\b", "2 shrimp"),
+         contrast = str_replace_all(contrast, "\\bshrimp_number1\\b", "1 shrimp"),
+         contrast = str_replace_all(contrast, "\\bshrimp_number3\\b", "3 shrimp")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-#assigning a value for the baseline mean
-shrimp_out_model_estimates_control_intercept <- shrimp_out_model_estimates_control %>%
-  dplyr::filter(stage == "Pre") %>%
-  pull(.value)
+shrimp_out_shrimp_species_contrasts1 <- shrimp_out_shrimp_species_contrasts |> 
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Shrimp species"
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_out_fig_control2 <- ggplot(shrimp_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_out_model_estimates_control, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = shrimp_out_model_estimates_control, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = shrimp_control_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  labs(x="Period relative to treatment",
-       y="Proportion of time out of burrow") +
-  theme(legend.position = "none", 
-        axis.title.x = element_blank(), 
-        axis.text.x = element_text(size = 13),  
-        axis.text.y = element_text(size = 13),
-        axis.title.y = element_text(size = 16, face = "bold", margin = margin(t = 0, b = 0, l = 0, r = 10)),
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#A3C088", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("Control")+
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#76A34A", "Post" = "#D3D9A7")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#2A330E", "Post" = "#5d634c"))
+shrimp_out_contrasts_table <- rbind(shrimp_out_contrasts1, shrimp_out_goby_number_contrasts1, shrimp_out_shrimp_number_contrasts1, shrimp_out_shrimp_species_contrasts1) |>
+  mutate(
+    `Estimated marginal difference` = round(`Estimated marginal difference`, 3),
+    `Lower 95% CrI` = round(`Lower 95% CrI`, 3),
+    `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
+  )
 
-shrimp_out_fig_control
+write_csv(shrimp_out_contrasts_table, "./2-data/shrimp_out_contrasts_table.csv")
 
-shrimp_out_control_model_draws <- shrimp_out_model_draws |> 
-  dplyr::filter(stroke == "4")
+#shrimp contact
+shrimp_contact_contrasts1 <- shrimp_contact_contrasts |> 
+  mutate(`Predictor variable` = "Treatment and phase interaction",
+         contrast = str_replace_all(contrast, "\\b2\\b", "2-Stroke"),
+         contrast = str_replace_all(contrast, "\\b4\\b", "4-Stroke"),
+         contrast = str_replace_all(contrast, "\\bcontrol\\b", "Control")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_four_raw_data <- final_df |> 
-  dplyr::filter(stroke =="4") |> 
-  rename(.value = shrimp_out)
+shrimp_contact_goby_number_contrasts1 <- shrimp_contact_goby_number_contrasts |>
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Number of gobies",
+         contrast = str_replace_all(contrast, "\\bgoby_number2\\b", "2 gobies"),
+         contrast = str_replace_all(contrast, "\\bgoby_number1\\b", "1 goby")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_four_raw_data$stage <- factor(shrimp_four_raw_data$stage, levels = c("Pre", "During", "Post"))
+shrimp_contact_shrimp_number_contrasts1 <- shrimp_contact_shrimp_number_contrasts |> 
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Number of shrimp",
+         contrast = str_replace_all(contrast, "\\bshrimp_number2\\b", "2 shrimp"),
+         contrast = str_replace_all(contrast, "\\bshrimp_number1\\b", "1 shrimp"),
+         contrast = str_replace_all(contrast, "\\bshrimp_number3\\b", "3 shrimp")
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_four_means <- shrimp_four_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
+shrimp_contact_shrimp_species_contrasts1 <- shrimp_contact_shrimp_species_contrasts |> 
+  as.data.frame() |> 
+  mutate(`Predictor variable` = "Shrimp species"
+         ) |> 
+  rename(`Estimated marginal difference` = estimate,
+         `Lower 95% CrI` = lower.HPD,
+         `Upper 95% CrI` = upper.HPD,
+         Contrast = contrast) |> 
+  select(c(`Predictor variable`, Contrast, `Estimated marginal difference`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-shrimp_out_fig_four2 <- ggplot(shrimp_four_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_out_model_estimates_four, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = shrimp_out_model_estimates_four, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = shrimp_four_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  xlab("Experimental phase relative to noise exposure")+
-  theme(legend.position = "none", 
-        axis.title.y = element_blank(),  
-        axis.text.x = element_text(size = 13),  
-        axis.text.y = element_blank(), 
-        axis.ticks.y = element_blank(), 
-        axis.title.x = element_text(size = 16, face = "bold", margin = margin(t = 15, b = 0, l = 0, r = 0)),
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#F6BC65", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("4-stroke")+
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#F29E00", "Post" = "#F2D5A0")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#805213", "Post" = "#70532b"))
+shrimp_contact_contrasts_table <- rbind(shrimp_contact_contrasts1, shrimp_contact_goby_number_contrasts1, shrimp_contact_shrimp_number_contrasts1, shrimp_contact_shrimp_species_contrasts1) |>
+  mutate(
+    `Estimated marginal difference` = round(`Estimated marginal difference`, 3),
+    `Lower 95% CrI` = round(`Lower 95% CrI`, 3),
+    `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
+  )
 
-shrimp_out_fig_four
-
-shrimp_out_control_model_draws <- shrimp_out_model_draws |> 
-  dplyr::filter(stroke == "2")
-
-shrimp_two_raw_data <- final_df |> 
-  dplyr::filter(stroke =="2") |> 
-  rename(.value = shrimp_out)
-
-shrimp_two_raw_data$stage <- factor(shrimp_two_raw_data$stage, levels = c("Pre", "During", "Post"))
-
-shrimp_two_means <- shrimp_two_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
-
-shrimp_out_fig_two2 <- ggplot(shrimp_two_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_out_model_estimates_two, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = shrimp_out_model_estimates_two, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = shrimp_two_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  theme(legend.position = "none", 
-        axis.title.x = element_blank(),  
-        axis.text.x = element_text(size = 13),
-        axis.title.y = element_blank(), 
-        axis.text.y = element_blank(), 
-        axis.ticks.y = element_blank(), 
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#EB9063", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("2-stroke") +
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#E25A00", "Post" = "#F2B389")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#542709", "Post" = "#66422a"))
-
-shrimp_out_fig_two
-
-shrimp_out_plot2 <- shrimp_out_fig_control2 + shrimp_out_fig_four2 + shrimp_out_fig_two2 + 
-  plot_layout(ncol = 3)
-
-shrimp_out_plot2
-ggsave("./3-figs/shrimp_out_plot2.png", plot = shrimp_out_plot2, units = "px", width = 2200, height = 1400, dpi = 300)
+write_csv(shrimp_contact_contrasts_table, "./2-data/shrimp_contact_contrasts_table.csv")
 ```
 
-##Shrmip contact
-```{r}
-shrimp_contact_model_draws <- shrimp_contact_model |> 
-  emmeans(~ stroke*stage,
-          epred = TRUE,
-          rg.limit = 14000,
-          re_formula = NA) |> 
-  gather_emmeans_draws()
-
-shrimp_contact_raw_data <- final_df |>
-  rename(.value = shrimp_contact)
-
-shrimp_contact_model_draws$stage <- factor(shrimp_contact_model_draws$stage, levels = c("Pre", "During", "Post"))
-shrimp_contact_model_draws$stroke <- factor(shrimp_contact_model_draws$stroke, levels = c("control", "4", "2"))
-
-shrimp_contact_control_model_draws <- shrimp_contact_model_draws |> 
-  dplyr::filter(stroke == "control")
-
-shrimp_control_raw_data <- final_df |> 
-  dplyr::filter(stroke =="control") |> 
-  rename(.value = shrimp_contact)
-
-shrimp_control_means <- shrimp_control_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
-
-shrimp_control_raw_data$stage <- factor(shrimp_control_raw_data$stage, levels = c("Pre", "During", "Post"))
-
-#assigning a value for the baseline mean
-shrimp_contact_model_estimates_control_intercept <- shrimp_contact_model_estimates_control %>%
-  dplyr::filter(stage == "Pre") %>%
-  pull(.value)
-
-shrimp_contact_fig_control2 <- ggplot(shrimp_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_contact_model_estimates_control, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = shrimp_contact_model_estimates_control, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = shrimp_control_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  labs(x="Period relative to treatment",
-       y="Proportion of time contact of burrow") +
-  theme(legend.position = "none", 
-        axis.title.x = element_blank(), 
-        axis.text.x = element_text(size = 13),  
-        axis.text.y = element_text(size = 13),
-        axis.title.y = element_text(size = 16, face = "bold", margin = margin(t = 0, b = 0, l = 0, r = 10)),
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#A3C088", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("Control")+
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#76A34A", "Post" = "#D3D9A7")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#2A330E", "Post" = "#5d634c"))
-
-
-shrimp_contact_control_model_draws <- shrimp_contact_model_draws |> 
-  dplyr::filter(stroke == "4")
-
-shrimp_four_raw_data <- final_df |> 
-  dplyr::filter(stroke =="4") |> 
-  rename(.value = shrimp_contact)
-
-shrimp_four_raw_data$stage <- factor(shrimp_four_raw_data$stage, levels = c("Pre", "During", "Post"))
-
-shrimp_four_means <- shrimp_four_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
-
-shrimp_contact_fig_four2 <- ggplot(shrimp_four_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_contact_model_estimates_four, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = shrimp_contact_model_estimates_four, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = shrimp_four_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  xlab("Experimental phase relative to noise exposure")+
-  theme(legend.position = "none", 
-        axis.title.y = element_blank(),  
-        axis.text.x = element_text(size = 13),  
-        axis.text.y = element_blank(), 
-        axis.ticks.y = element_blank(), 
-        axis.title.x = element_text(size = 16, face = "bold", margin = margin(t = 15, b = 0, l = 0, r = 0)),
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#F6BC65", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("4-stroke")+
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#F29E00", "Post" = "#F2D5A0")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#805213", "Post" = "#70532b"))
-
-
-shrimp_contact_control_model_draws <- shrimp_contact_model_draws |> 
-  dplyr::filter(stroke == "2")
-
-shrimp_two_raw_data <- final_df |> 
-  dplyr::filter(stroke =="2") |> 
-  rename(.value = shrimp_contact)
-
-shrimp_two_raw_data$stage <- factor(shrimp_two_raw_data$stage, levels = c("Pre", "During", "Post"))
-
-shrimp_two_means <- shrimp_two_raw_data |> 
-  group_by(stage) |> 
-  summarise(.value = mean(.value))
-
-shrimp_contact_fig_two2 <- ggplot(shrimp_two_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
-  geom_jitter(position = position_jitternudge(x = -0.1, width = 0.1, nudge.from = "jittered"), alpha = 0.4, size = 2) +
-  geom_crossbar(alpha = 0.6, size = 0.8, data = shrimp_contact_model_estimates_two, aes(ymin = lower.HPD, ymax = upper.HPD), width = 0, position = position_nudge(x = 0.2))+
-  geom_point(pch = 23, stroke = 1.2, data = shrimp_contact_model_estimates_two, size = 2, position = position_nudge(x = 0.2)) +
-  geom_point(data = shrimp_two_means, position = position_dodgenudge(width = 0.8, x = -0.1), size = 9, shape = "_") +
-  theme(legend.position = "none", 
-        axis.title.x = element_blank(),  
-        axis.text.x = element_text(size = 13),
-        axis.title.y = element_blank(), 
-        axis.text.y = element_blank(), 
-        axis.ticks.y = element_blank(), 
-        plot.title = element_textbox_simple(face = "bold", size = 16, halign = 0.5, linewidth = 0.3, linetype = 1, color = "black", fill = "#EB9063", padding = margin(5, 5, 5, 5)), 
-        panel.background = element_rect(fill = "white", colour = "black"),
-        plot.background = element_rect(fill = NA, colour = NA))+
-  ggtitle("2-stroke") +
-  scale_fill_manual(values = c("Pre" = "darkgrey", "During" = "#E25A00", "Post" = "#F2B389")) +
-  scale_color_manual(values = c("Pre" = "#242424", "During" = "#542709", "Post" = "#66422a"))
-
-shrimp_contact_plot2 <- shrimp_contact_fig_control2 + shrimp_contact_fig_four2 + shrimp_contact_fig_two2 + 
-  plot_layout(ncol = 3)
-
-shrimp_contact_plot2
-ggsave("./3-figs/shrimp_contact_plot2.png", plot = shrimp_contact_plot2, units = "px", width = 2200, height = 1400, dpi = 300)
-```
