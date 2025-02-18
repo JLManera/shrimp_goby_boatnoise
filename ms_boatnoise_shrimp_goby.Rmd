@@ -32,7 +32,7 @@ tidy = TRUE
 #install.packages("pacman")
 pacman::p_load(tidyverse, ggplot2, brms, cmdstanr, broom, broom.mixed, tidybayes, ggthemes, emmeans, ggdist, gridExtra, bayesplot, see, patchwork, ggtext, extraDistr, gghalves, ggpp, rstan) 
 
-remotes::install_github("stan-dev/loo")
+#remotes::install_github("stan-dev/loo")
 # Setting colours for vidsalisations
 colour1 <- "#97A275"
 colour2 <- "#F2B23A"
@@ -51,7 +51,7 @@ colour13 <- "#9C4811"
 directory <- './2-data/'
 
 #reading in the coded raw BORIS output
-BORIS_output <- read.csv("./2-data/BORIS_output_update.csv")
+BORIS_output <- read.csv("./2-data/BORIS_output.csv")
 
 #reading in the decoder
 Video_codes <- read.csv("./2-data/Video_codes.csv")
@@ -128,10 +128,9 @@ decoded_dataframe <- decoded_dataframe |>
                 video_num = as.numeric(str_sub(video_id, 2)),
                 burrow = ceiling(video_num/3),
                 individual = str_sub(subject, 1, 1),
-                helper = str_sub(date_file, -6,-6),
-                stroke = ifelse(helper == "t", 'control', 
-                                ifelse((boat_id == "A")|(boat_id == "B")|(boat_id == "C")|(boat_id == "D"), 
-                                       '2', '4')))
+                stroke = factor(stroke),
+                boat_name = factor(boat_name)
+                )
 
 #creating some unique identifiers to make grouping easier later on for reorganising of the dataframe
 decoded_dataframe <- decoded_dataframe |> 
@@ -299,7 +298,8 @@ shrimp_df <- workingdf7 |>
   select(c("shrimp_out", "shrimp_total", "shrimp_number", "burrow_stage", "shrimp_contact"))
 
 final_df <- inner_join(goby_df, shrimp_df, by = "burrow_stage") |> 
-  mutate(shrimp_contact = ifelse(is.na(shrimp_contact), ifelse(goby_out == 1, 0, 1 - goby_out), shrimp_contact))
+  mutate(shrimp_contact = ifelse(is.na(shrimp_contact), ifelse(goby_out == 1, 0, 1 - goby_out), shrimp_contact)) |> 
+  filter(site != "SITE O")
 
 write_csv(final_df, "./2-data/final_df.csv")
 ```
@@ -310,13 +310,13 @@ write_csv(final_df, "./2-data/final_df.csv")
 #building a global model for the proportion of time gobies spent out of the burrow
 zoib_formula <- bf(
   # mu (mean) part
-  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  goby_out ~ stroke * stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
   # phi (precision) part
-  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  phi ~ stroke * stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
   # alpha (zero-one-inflation) part
-  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  zoi ~ stroke * stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
   # The one-inflated part, conditional on the 0s
-  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  coi ~ stroke * stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
   
   family = zero_one_inflated_beta()
 )
@@ -554,10 +554,6 @@ goby_out_model_estimates <- goby_out_model |>
 
 goby_out_model_estimates <- as.data.frame(goby_out_model_estimates)
 
-goby_out_model_estimates
-
-write.csv(goby_out_model_estimates, "./2-data/goby_out_model_estimates.csv")
-
 #Storing the model estimate means for each group to plot later on
 goby_out_model_estimates_control <- goby_out_model_estimates |> 
   dplyr::filter(stroke == "control") |> 
@@ -571,6 +567,7 @@ goby_out_model_estimates_two <- goby_out_model_estimates |>
   dplyr::filter(stroke == "2")|> 
   rename(.value = emmean)
 ```
+
 ####2.3.3.2 Plotting model estimates and raw data
 ```{r}
 goby_out_model_draws <- goby_out_model |> 
@@ -627,7 +624,6 @@ goby_out_fig_together <- ggplot(data = goby_out_raw_data, aes(x = stage, y = emm
   )
 
 goby_out_fig_together
-ggsave("./3-figs/goby_out_fig_together.png", plot = goby_out_fig_together, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 
@@ -851,14 +847,14 @@ goby_out_shrimp_species <- goby_out_model |>
           re_formla = NULL) |> 
   contrast(method = "revpairwise")
 
-goby_out_shrimp_species
+goby_out_shrimp_species <- as.data.frame(goby_out_shrimp_species)
 
 goby_out_shrimp_species_estimates <- goby_out_model |>
   emmeans(~ shrimp_species, 
           epred = TRUE,
           re_formla = NULL)
 
-goby_out_shrimp_species_estimates
+goby_out_shrimp_species_estimates <- as.data.frame(goby_out_shrimp_species_estimates)
 
 goby_out_shrimp_species_draws <- goby_out_model |>
   emmeans(~ shrimp_species, 
@@ -933,8 +929,6 @@ summary(predict(shrimp_out_model))
 ###2.4.2 Posterior marginal effects
 ####2.4.2.1 Pairwise contrasts of stroke and stage
 ```{r}
-ranef(shrimp_out_model)
-
 shrimp_out_contrasts <- shrimp_out_model |>
   emmeans(~ stroke*stage, 
           epred = TRUE,
@@ -992,8 +986,6 @@ shrimp_out_model_estimates <- shrimp_out_model |>
 shrimp_out_model_estimates <- as.data.frame(shrimp_out_model_estimates)
 
 shrimp_out_model_estimates
-
-write.csv(shrimp_out_model_estimates, "./2-data/shrimp_out_model_estimates.csv")
 
 #Storing the model estimate means for each group to plot later on
 shrimp_out_model_estimates_control <- shrimp_out_model_estimates |> 
@@ -1064,7 +1056,6 @@ shrimp_out_fig_together <- ggplot(data = shrimp_out_raw_data, aes(x = stage, y =
   )
 
 shrimp_out_fig_together
-ggsave("./3-figs/shrimp_out_fig_together.png", plot = shrimp_out_fig_together, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 
@@ -1231,7 +1222,7 @@ shrimp_out_shrimp_number_contrasts <- shrimp_out_model |>
           rg.limit =14000) |> 
   contrast(method = "revpairwise") 
 
-shrimp_out_shrimp_number_contrasts
+shrimp_out_shrimp_number_contrasts <- as.data.frame(shrimp_out_shrimp_number_contrasts)
 
 shrimp_out_shrimp_number_estimates <- shrimp_out_model |>
   emmeans(~ shrimp_number, 
@@ -1338,6 +1329,15 @@ shrimp_contact_contrasts <- shrimp_contact_model |>
           rg.limit =14000) |> 
   contrast(method = "revpairwise") 
 
+overall_mean <- shrimp_contact_model |>
+  emmeans(~ 1,             # 1 means "no factors," i.e. the grand mean
+          epred = TRUE,    # estimate on the response scale
+          re_formla = NULL,
+          rg.limit = 14000)
+
+# View the summary with posterior mean and credible intervals
+overall_mean
+
 # Extract the relevant contrast information
 shrimp_contact_contrasts <- as.data.frame(shrimp_contact_contrasts) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
@@ -1394,8 +1394,6 @@ shrimp_contact_model |>
 shrimp_contact_model_estimates <- as.data.frame(shrimp_contact_model_estimates)
 
 shrimp_contact_model_estimates
-
-write.csv(shrimp_contact_model_estimates, "./2-data/shrimp_contact_model_estimates.csv")
 
 #Storing the model estimate means for each group to plot later on
 shrimp_contact_model_estimates_control <- shrimp_contact_model_estimates |> 
@@ -1850,5 +1848,19 @@ shrimp_contact_contrasts_table <- rbind(shrimp_contact_contrasts1, shrimp_contac
   )
 
 write_csv(shrimp_contact_contrasts_table, "./2-data/shrimp_contact_contrasts_table.csv")
+```
+
+```{r}
+table_S1 <- final_df %>%
+  select(c("burrow", "stroke", "site")) |> 
+  unique() |> 
+  group_by(site, stroke) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(names_from = stroke, values_from = n, values_fill = 0) %>%
+  mutate(Total = `control` + `4` + `2`) %>%
+  arrange(site) %>%
+  rename(`4-stroke` = `4`, 
+         `2-stroke` = `2`, 
+         Control = control)
 ```
 
