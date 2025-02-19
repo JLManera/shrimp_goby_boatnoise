@@ -7,17 +7,65 @@ output:
     code_download: true
     code_folding: hide
     depth: 4
-    number_sections: no
+    number_sections: yes
     theme:  cosmo
     toc: yes
     toc_float: yes
     toc_depth: 4
   pdf_document:
     toc: yes
+knit: |
+  (function(input, ...) {
+    rmarkdown::render(
+      input,
+      output_file = paste0(
+       'index.html'
+      ),
+      envir = globalenv()
+    )
+  })
 ---
 
-```{r setup, include = FALSE}
-#kniter setting
+<!------------------------------->
+# 📕 READ ME   
+<!------------------------------->
+
+**SUMMARY**  
+
+
+**AIM**  
+
+
+**AUTHORS**  
+
+
+**AFFILIATIONS** 
+
+
+**CONTRIBUTOR ROLES**  
+
+<!------------------------------->
+# 📧 Contact
+<!------------------------------->
+
+**Jake M. Martin**
+  
+📧 **Email:** [jake.martin@deakin.edu.au](mailto:jake.martin@deakin.edu.au)  
+  
+📧 **Alt Email:** [jake.martin.research@gmail.com](mailto:jake.martin.research@gmail.com) 
+  
+🌐 **Web:** [jakemartin.org](https://jakemartin.org/)  
+  
+🐙 **GitHub**: [JakeMartinResearch](https://github.com/JakeMartinResearch)  
+
+<!------------------------------->
+# ⚙️ Knit settings 
+<!------------------------------->
+
+Here we define our Knit settings, to make the output more user friendly, and to cache output for faster knitting.  
+
+```{r setup}
+#kniter seetting
 knitr::opts_chunk$set(
 message = FALSE,
 warning = FALSE, # no warnings
@@ -26,14 +74,31 @@ tidy = TRUE
 )
 ```
 
-#1. Data wrangling
-##1.1 Loading the required packages
+
+<!------------------------------->
+# 📦 Required packages
+<!------------------------------->
+
+These are the R packages required for this script. You will need to install a package called pacman to run the p_load function.   
+
+🚧 Do we need `stan-dev/loo` 🚧   
+
 ```{r, message=FALSE, results='hide'}
 #install.packages("pacman")
-pacman::p_load(tidyverse, ggplot2, brms, cmdstanr, broom, broom.mixed, tidybayes, ggthemes, emmeans, ggdist, gridExtra, bayesplot, see, patchwork, ggtext, extraDistr, gghalves, ggpp, rstan) 
+#require("pacman") 
+pacman::p_load(tidyverse, ggplot2, brms, cmdstanr, broom, broom.mixed, tidybayes, ggthemes, emmeans, ggdist, gridExtra, bayesplot, see, patchwork, ggtext, extraDistr, gghalves, ggpp, rstan, gt) 
 
 #remotes::install_github("stan-dev/loo")
-# Setting colours for vidsalisations
+```
+
+<!------------------------------->
+# 🤠 Data wrangling
+<!------------------------------->
+
+Setting colour palette for visualisations   
+
+```{r}
+# Setting colours for visualisations
 colour1 <- "#97A275"
 colour2 <- "#F2B23A"
 colour3 <- "#F2711B"
@@ -45,7 +110,14 @@ colour12 <- "#A38346"
 colour13 <- "#9C4811"
 ```
 
-##1.2 Unblinding the data
+## Data
+
+Here we load in the three date files 
+
+- **💿 BORIS_output.csv**: This is the summary output from the BORIS, the key logging software used for behavioural observations. This includes the occurrence count and total duration of each of the measured behaviour endpoints, for each shrimp and each goby across all trials. They are identified with the code column.  
+- **💿 Video_codes.csv**: This has meta data for each video, include treatment information and associated codes.
+- **💿 species.csv**: This is the species name for the shrimp in each of the videos
+
 ```{r}
 #assigning the directory so that the code can be universally read on any computer as long as the entire project file is shared
 directory <- './2-data/'
@@ -58,7 +130,13 @@ Video_codes <- read.csv("./2-data/Video_codes.csv")
 
 #reading in shrimp species information
 shrimp_species <- read.csv("./2-data/species.csv")
+```
 
+## Unblinding data
+
+Now we unbind the treatment code form behavioural observations (all behaviours were scored blind to treatment). This is done using video code column. 
+
+```{r}
 #binding the decoder to the BORIS output and revealing the treatment and stage
 BORIS_output$code <- str_sub(BORIS_output$video_id, 2,)
 BORIS_output$code <- as.factor(BORIS_output$code)
@@ -67,7 +145,10 @@ Video_codes$code <- as.factor(Video_codes$code)
 decoded_dataframe <- inner_join(inner_join(BORIS_output, Video_codes, by = c("code")), shrimp_species, by = c("code"))
 ```
 
-## 1.3 Cross-checking the imported datasets
+## Cross-checking the imported datasets
+
+There were instances where burrows were recorded and assigned video codes but showed no activity from gobies or shrimp during these recordings. These instances led to the assumption that such burrows were inactive, resulting in their exclusion from the further analysis of the study.  
+
 ```{r}
 # Find common codes across all data sets
 common_codes <- Reduce(intersect, list(BORIS_output$code, shrimp_species$code, Video_codes$code))
@@ -106,17 +187,18 @@ for(code in codes_not_common) {
 
 # Print the results
 print(results)
-
-# Missing observations are identified exclusively within the 'Video_codes' dataframe. This situation suggests that all videos capturing both shrimp and gobies are consistently represented across the datasets. However, there were instances where burrows were recorded and assigned video codes but showed no activity from gobies or shrimp during these recordings. These instances led to the assumption that such burrows were inactive, resulting in their exclusion from the further analysis of the study.
 ```
 
-##1.4 Cleaning the dataframe
-###1.4.1 Column renaming
+##  Cleaning the dataframe
+
+### Column renaming
+
+Renaming some of the variables and extracting individual variables from columns that have multiple variables contained in one string   
+
 ```{r}
 decoded_dataframe <- decoded_dataframe |> 
   rename(shrimp_species = species)
 
-#renaming some of the variables and extracting individual variables from columns that have multiple variables contained in one string
 decoded_dataframe <- decoded_dataframe |> 
   dplyr::rename(stage = video_section,
                 duration = total_duration_s,
@@ -131,18 +213,22 @@ decoded_dataframe <- decoded_dataframe |>
                 stroke = factor(stroke),
                 boat_name = factor(boat_name)
                 )
+```
 
-#creating some unique identifiers to make grouping easier later on for reorganising of the dataframe
+Creating some unique identifiers to make grouping easier later on for reorganising of the data frame.   
+
+```{r}
 decoded_dataframe <- decoded_dataframe |> 
   unite("unique_id", 'burrow','individual', 'species', 'stage', remove = FALSE) |> 
   unite("burrow_species_stage", 'burrow', 'species', 'stage', remove = FALSE) |> 
   unite("burrow_species", 'burrow', 'species', remove = FALSE)
 ```
 
-###1.4.2 Removing redundant BORIS entries
-```{r}
-#the next few lines of code are to do with the way BORIS outputs data, where there was redundant empty sections due to both species being independently scored in the software. So here we are filtering out the species specific data from the correlating BORIS species observation and then rebinding the data to remove all of the empty artifact entries. 
+### Removing redundant BORIS entries
 
+Here we clean the BROIS output data, where there was redundant empty sections due to both species being independently scored in the software. So here we are filtering out the species specific data from the correlating BORIS species observation and then rebinding the data to remove all of the empty artifact entries. 
+
+```{r}
 #extracting just the goby data so that a species variable can be made
 goby_dataframe <- decoded_dataframe |> 
   dplyr::filter(species == "Goby") |> 
@@ -168,9 +254,15 @@ workingdf3 <- workingdf2 |>
   dplyr::filter(sum(averageduration) != 0)
 ```
 
-###1.4.3 Assigning values to missing entries
+### Assigning values to missing entries
+
+Here we are dealing with miss focal species during specific segments of the trial.   
+
+We make the assumption that when a **goby is present in other videos** (i.e. we know it exists) but **missing from a given trial segment** it is **'away'** and out of frame for the entire trial. In the case of shrimps, we assume it **inside the burrow the entire time**. These assumptions are based off our teams observation of these species, and the previously reported biological tendencies of each species. Because of this assumption we are assigning the respective value to the behviour in cases where one of the species is known to be present in a burrow but not viewed for the length of the trial.   
+
+🚧 Jack, maybe you could break this up and add a little more detial, I got a little lost in the code 🚧 
+
 ```{r}
-#now here we are making the assumption that when a goby or shrimp is present in other videos but missing from the video of focus it is either away and out of frame for the entire trial if it is a goby. Otherwise it is inside the burrow the entire time if it is a shrimp. These assumptions are based off of preliminary observation and the general tendencies of each species. Because of this assumption we are assigning the respective value to the behviour in cases where one of the species is known to be present in a burrow but not viewed for the length of the trial. 
 fixeddf1 <- workingdf3 |> 
   dplyr::filter(averageduration == 0) |> 
   mutate(duration = ifelse(species == "Goby" & behaviour == "AWAY", 300, duration),
@@ -231,9 +323,11 @@ wide_data <- wide_data |>
 #Checking to see the count of observations per burrow
 burrow_counts <- table(wide_data$burrow)
 print(burrow_counts)
+```
 
-#there are some burrows that are missing stages due to the animal not being observered at all during that observation so we will make some conditional assumptions and fill in the missing values. 
+There are some burrows that are missing stages due to the animal not being observered at all during that observation so we will make some conditional assumptions and fill in the missing values.   
 
+```{r}
 #a function to fill the missing stages for each species within each burrow
 fill_missing_stages <- function(df) {
   all_stages <- c('Pre', 'During', 'Post')
@@ -282,7 +376,10 @@ filled_burrow_counts <- table(wide_data_filled$burrow)
 print(filled_burrow_counts)
 ```
 
-###1.4.4 Changing dataframe format 
+### Changing dataframe format 
+
+Restructure the data frame for easier analysis   
+
 ```{r}
 workingdf7 <- wide_data_filled |> 
   mutate(burrow_stage = paste(burrow, stage))
@@ -304,10 +401,17 @@ final_df <- inner_join(goby_df, shrimp_df, by = "burrow_stage") |>
 write_csv(final_df, "./2-data/final_df.csv")
 ```
 
-#2. Statistical analysis using zero-one inflated beta regression
-##2.1 Building a global model
+<!------------------------------->
+# 🧮 Analysis 
+<!------------------------------->
+
+## 🐟 Gobies time outside of burrow
+
+### Model struture
+
+First we will build a global model for the proportion of time gobies spent out of the burrow
+
 ```{r}
-#building a global model for the proportion of time gobies spent out of the burrow
 zoib_formula <- bf(
   # mu (mean) part
   goby_out ~ stroke * stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
@@ -322,28 +426,39 @@ zoib_formula <- bf(
 )
 ```
 
-##2.2 Specifying priors
-###2.2.1 Checking default priors
+### Specifying priors
+
+#### Checking default priors
+
+First we check default priors    
+
+All the beta coefficients are being given a flat prior which means it can take on a value from - infinity to + infinity. All the beta coefficients are on the logit scale so lets plot how changing the value of beta relates to different proportions    
+
 ```{r}
 get_prior(
   zoib_formula,
   data = final_df
-)
-#we can see that all the beta coefficients are being given a flat prior which means it can take on a value from - infinity to + infinity. All the beta coefficients are on the logit scale so lets plot how changing the value of beta relates to different proportions
+) %>% 
+  gt()
 ```
 
-###2.2.2 Graphing logit~proportion
+#### Graphing logit~proportion
+
+After -5 or +5 the probability doesn't change much, instead of leaving our priors at the default of + and - infinity, we should say that they are most likely to occur between -5 and +5.    
+
 ```{r}
 tibble(x = seq(-8, 8, by = 0.1)) |> 
   mutate(y = plogis(x)) |> 
   ggplot(aes(x = x, y = y)) +
   geom_line(size = 1) +
-  labs(x = "Logit scale", y = "Probability scale")
-
-#we can see that after -5 or +5 the probability doesn't change much, instead of leaving our priors at the default of + and - infinity, we should say that they are most likely to occur between -5 and +5.
+  labs(x = "Logit scale", y = "Probability scale") +
+  theme_minimal()
 ```
 
-###2.2.3 Ploting priors
+#### Ploting priors
+
+This visualises our priors, to aid in specification.      
+
 ```{r}
 # Generate data points
 x <- seq(-20, 20, length.out = 1000)  # Adjusted range for better visualization
@@ -377,9 +492,11 @@ ggplot(df, aes(x)) +
   theme_minimal()
 ```
 
-###2.2.4 Setting priors 
+#### Setting priors 
+
+These are our specified priors, for the intercept have been left as the default and the coefficient priors defined above.   
+
 ```{r}
-#the priors for the intercept have been left as the default and the coefficient priors defined above
 priors <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
             set_prior("logistic(0, 3)", class = "Intercept", dpar = "coi"),
             set_prior("logistic(0, 3)", class = "Intercept", dpar = "zoi"),
@@ -394,7 +511,10 @@ priors <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
             set_prior("normal(0, 3)", class = "b", dpar = "coi"))
 ```
 
-###2.2.5 Prior predictive check 
+#### Prior predictive check 
+
+Here we will build a prior only model, to check the specification was reasonable
+
 ```{r}
 prior_formula <- bf(
   # mu (mean) part
@@ -424,12 +544,20 @@ prior_model <- brm(
   file = "prior_check"
 )
 
+color_scheme_set("red")
 pp_check(prior_model, ndraws=20)
 pp_check(prior_model, ndraws=100, type = 'stat', stat = 'mean')
 ```
 
 
-##2.3 Modelling the proportion of time gobies spent outside of the burrow
+### Running model
+
+Now we run and save the model.
+
+⏭️ **Skip this step** if you have downloaded the saved model 'goby_out_model.rds'. You will load the model in the next step.
+
+🚧 Jack, you might consider wiring the brms models to a folder called '4-mods' 🚧
+
 ```{r}
 goby_out_formula_1 <- bf(
   # mu (mean) part
@@ -443,25 +571,44 @@ goby_out_formula_1 <- bf(
   
   family = zero_one_inflated_beta()
 )
+```
 
-goby_out_model <- brm(
-  goby_out_formula_1,
-  data = final_df,
-  family = zero_one_inflated_beta(),
-  prior = priors,
-  control = list(adapt_delta = 0.99,
-                 max_treedepth = 12),
-  chains = 4, iter = 4000, warmup = 1000,
-  cores = 4, threads = threading(2),
-  backend = "cmdstanr",
-  seed = 1,
-  file = "goby_out_model"
-)
+Run model    
 
+```{r}
+# goby_out_model <- brm(
+#   goby_out_formula_1,
+#   data = final_df,
+#   family = zero_one_inflated_beta(),
+#   prior = priors,
+#   control = list(adapt_delta = 0.99,
+#                  max_treedepth = 12),
+#   chains = 4, iter = 4000, warmup = 1000,
+#   cores = 4, threads = threading(2),
+#   backend = "cmdstanr",
+#   seed = 1,
+#   file = "goby_out_model"
+# )
+```
+
+Here we reload the model.   
+
+```{r}
+goby_out_model <-  readRDS(file = "goby_out_model.rds")
+```
+
+Looking at the basic model summary
+
+```{r}
 summary(goby_out_model)
 ```
-###2.3.1 Model fit and diagnostics
-####2.3.1.1 Model convergence
+
+### Model fit and diagnostics
+
+#### Model convergence
+
+Here we check the model convergence using R-hat   
+
 ```{r}
 #convergence diagnostics (R-hat)
 extract_rhats <- function(model) {
@@ -480,23 +627,44 @@ extract_rhats <- function(model) {
   return(rhats)
 }
 
-extract_rhats(goby_out_model)
+extract_rhats(goby_out_model) 
 ```
 
-####2.3.1.2 Model fit
+#### Model fit
+
+Now we will asses model fit.   
+
 ```{r}
 #posterior predictive checks
 pp_check(goby_out_model, ndraws = 50)
 
 pp_check(goby_out_model, type='stat', stat='mean')
+```
 
-#fitted vs predicted values
+Creating a summary of the observed data   
+
+```{r}
 summary(fitted(goby_out_model))
+```
+
+To compare with a summary of the predicted data, they seem to align very nicely.    
+
+```{r}
 summary(predict(goby_out_model))
 ```
 
-###2.3.2 Posterior marginal effects
-####2.3.2.1 Pairwise contrasts of stroke and stage
+🚧 Interesting that a 16% of the observations are not being predicted very well by the model, do we think this is an issue 🚧 
+
+Using leave one out (loo) measure of fit, the model appears to preform ok, 16% Pareto k estimates falls outside the good range (0.7, 1]   
+
+```{r}
+loo(goby_out_model)
+```
+
+### Posterior marginal effects
+
+#### Pairwise contrasts of stroke and stage
+
 ```{r}
 goby_out_contrast_effect <- goby_out_model |>
   emmeans(~ stroke*stage, 
@@ -509,8 +677,13 @@ goby_out_contrast_effect <- goby_out_model |>
 goby_out_results.table <- as.data.frame(goby_out_contrast_effect) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
-goby_out_results.table
+goby_out_results.table %>% 
+  gt()
+```
 
+Pull predicted contrast for a plot
+
+```{r}
 goby_out_contrast_draws <- goby_out_model |>
   emmeans(~ stroke*stage, 
           epred = TRUE,
@@ -518,15 +691,18 @@ goby_out_contrast_draws <- goby_out_model |>
           rg.limit =14000) |> 
   contrast(method = "revpairwise") |> 
   gather_emmeans_draws()
-  goby_out_contrast_draws
 
 goby_out_temporal_contrasts <- goby_out_contrast_draws |> 
   dplyr::filter(contrast %in% c("control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post")) |> 
   mutate(stroke = ifelse(contrast %in% c("control Pre - control During", "control Pre - control Post"), "Control", ifelse(contrast %in% c("4 Pre - 4 During", "4 Pre - 4 Post"), "4", "2")))
 
 goby_out_temporal_contrasts$stroke <- factor(goby_out_temporal_contrasts$stroke, levels = c("Control", "4", "2"))
+```
 
-fig.goby_out_temporal_contrasts<- ggplot(goby_out_temporal_contrasts, aes(x = .value, y = factor(contrast, levels = c("control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post")), color = stroke, fill = stroke)) +
+Making a figure
+
+```{r}
+fig.goby_out_temporal_contrasts <- ggplot(goby_out_temporal_contrasts, aes(x = .value, y = factor(contrast, levels = c("control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post")), color = stroke, fill = stroke)) +
    geom_vline(xintercept = 0, color = "black", size = 0.5) +
   stat_halfeye(.width = c(0.89, 0.95))+
   scale_color_manual(values = c(colour11, colour12, colour13)) +
@@ -543,8 +719,9 @@ fig.goby_out_temporal_contrasts<- ggplot(goby_out_temporal_contrasts, aes(x = .v
 
 fig.goby_out_temporal_contrasts
 ```
-###2.3.3 Extracting and plotting model estimates
-####2.3.3.1 Extracting estimates
+### Extracting and plotting model estimates
+
+#### Extracting estimates
 ```{r}
 goby_out_model_estimates <- goby_out_model |> 
   emmeans(~ stroke*stage,
@@ -568,7 +745,8 @@ goby_out_model_estimates_two <- goby_out_model_estimates |>
   rename(.value = emmean)
 ```
 
-####2.3.3.2 Plotting model estimates and raw data
+####  Plotting model estimates and raw data
+
 ```{r}
 goby_out_model_draws <- goby_out_model |> 
   emmeans(~ stroke*stage,
@@ -627,7 +805,8 @@ goby_out_fig_together
 ```
 
 
-####2.3.3.3 Plotting control estimates and raw data
+#### Plotting control estimates and raw data
+
 ```{r}
 goby_out_model_draws <- goby_out_model |> 
   emmeans(~ stroke*stage,
@@ -683,7 +862,8 @@ goby_out_fig_control <- ggplot(goby_control_raw_data, aes(y = .value, x = stage,
 
 goby_out_fig_control
 ```
-####2.3.3.4 Plotting 4-stroke estimates and raw data
+#### Plotting 4-stroke estimates and raw data
+
 ```{r}
 goby_out_control_model_draws <- goby_out_model_draws |> 
   dplyr::filter(stroke == "4")
@@ -722,7 +902,8 @@ goby_out_fig_four <- ggplot(goby_four_raw_data, aes(y = .value, x = stage, fill 
 goby_out_fig_four
 ```
 
-####2.3.3.5 Plotting 2-stroke estimates and raw data
+#### Plotting 2-stroke estimates and raw data
+
 ```{r}
 goby_out_control_model_draws <- goby_out_model_draws |> 
   dplyr::filter(stroke == "2")
@@ -759,17 +940,26 @@ goby_out_fig_two <- ggplot(goby_two_raw_data, aes(y = .value, x = stage, fill = 
 
 goby_out_fig_two
 ```
-####2.3.3.6 Combining plots into one figure
-```{r}
+
+#### Combining plots into one figure
+
+```{r, results='hide'}
 goby_out_plot3 <- goby_out_fig_control + goby_out_fig_four + goby_out_fig_two + 
   plot_layout(ncol = 3)
+```
 
+
+```{r}
 goby_out_plot3
 ggsave("./3-figs/goby_out_plot3.jpeg", plot = goby_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
-###2.3.4 Effects of covariates on the proportion of time gobies spent outside of the burrow
-####2.3.4.1 Goby number
+### Effects of covariates on the proportion of time gobies spent outside of the burrow
+
+#### Goby number
+
+Estimates based on the number of gobies
+
 ```{r}
 goby_out_model |>
   emmeans(~ goby_number, 
@@ -783,7 +973,11 @@ goby_out_goby_number <- goby_out_model |>
   contrast(method = "revpairwise")
 
 goby_out_goby_number
+```
 
+Plotting contrast     
+
+```{r}
 goby_out_goby_number_draws <- goby_out_model |>
   emmeans(~ goby_number, 
           epred = TRUE,
@@ -798,12 +992,16 @@ goby_out_goby_number_fig<- ggplot(goby_out_goby_number_draws, aes(x = .value, y 
        fill = "Noise treatment", color = "Noise treatment",
        fill_ramp = "Credible interval") +
   xlab(NULL) +
+  theme_classic() +
   coord_flip()
 
 goby_out_goby_number_fig
 ```
 
-####2.3.4.2 Shrimp number
+#### Shrimp number
+
+Estimates based on the number of shrimp   
+
 ```{r}
 goby_out_shrimp_number <- goby_out_model |>
   emmeans(~ shrimp_number, 
@@ -819,7 +1017,11 @@ goby_out_shrimp_number_estimates <- goby_out_model |>
           re_formla = NULL)
 
 goby_out_shrimp_number_estimates
+```
 
+Plotting contrast  
+
+```{r}
 goby_out_shrimp_number_draws <- goby_out_model |>
   emmeans(~ shrimp_number, 
           epred = TRUE,
@@ -834,12 +1036,14 @@ goby_out_shrimp_number_fig<- ggplot(goby_out_shrimp_number_draws, aes(x = .value
        fill = "Noise treatment", color = "Noise treatment",
        fill_ramp = "Credible interval") +
   xlab(NULL) +
+  theme_classic() +
   coord_flip()
 
 goby_out_shrimp_number_fig
 ```
 
-####2.3.4.3 Shrimp species
+#### Shrimp species
+
 ```{r}
 goby_out_shrimp_species <- goby_out_model |>
   emmeans(~ shrimp_species, 
@@ -876,7 +1080,10 @@ goby_out_shrimp_species_fig
 ```
 
 
-##2.4 Modelling the proportion of time shrimp spent outside of the burrow
+## 🦐 Shrimp time outside of burrow
+
+Model structure    
+
 ```{r}
 shrimp_out_formula <- bf(
   # mu (mean) part
@@ -890,44 +1097,74 @@ shrimp_out_formula <- bf(
   
   family = zero_one_inflated_beta()
 )
+```
 
-shrimp_out_model <- brm(
-  shrimp_out_formula,
-  data = final_df,
-  family = zero_one_inflated_beta(),
-  prior = priors,
-  control = list(adapt_delta = 0.99,
-                 max_treedepth = 12),
-  chains = 4, iter = 4000, warmup = 1000,
-  cores = 4, threads = threading(2),
-  backend = "cmdstanr",
-  seed = 1,
-  file = "shrimp_out_model"
-)
+Now we run and save the model.
 
+⏭️ **Skip this step** if you have downloaded the saved model 'shrimp_out_model.rds'. You will load the model in the next step
+
+```{r}
+# shrimp_out_model <- brm(
+#   shrimp_out_formula,
+#   data = final_df,
+#   family = zero_one_inflated_beta(),
+#   prior = priors,
+#   control = list(adapt_delta = 0.99,
+#                  max_treedepth = 12),
+#   chains = 4, iter = 4000, warmup = 1000,
+#   cores = 4, threads = threading(2),
+#   backend = "cmdstanr",
+#   seed = 1,
+#   file = "shrimp_out_model"
+# )
+```
+
+Here we reload the model.   
+
+```{r}
+shrimp_out_model <-  readRDS(file = "shrimp_out_model.rds")
+```
+
+
+```{r}
 summary(shrimp_out_model)
 ```
 
-###2.4.1 Model fit and diagnostics
-####2.4.1.1 Model convergence
+
+### Model fit and diagnostics
+
+#### Model convergence
+
 ```{r}
 extract_rhats(shrimp_out_model)
 ```
 
-####2.4.1.2 Model fit
+#### Model fit
+
 ```{r}
 #posterior predictive checks
 pp_check(shrimp_out_model)
 
 pp_check(shrimp_out_model, type='stat', stat='mean')
+```
 
-#fitted vs predicted values
+Creating a summary of the observed data   
+
+```{r}
 summary(fitted(shrimp_out_model))
+```
+
+To compare with a summary of the predicted data, they seem to align very nicely.    
+
+```{r}
 summary(predict(shrimp_out_model))
 ```
 
-###2.4.2 Posterior marginal effects
-####2.4.2.1 Pairwise contrasts of stroke and stage
+
+### Posterior marginal effects
+
+#### Pairwise contrasts of stroke and stage
+
 ```{r}
 shrimp_out_contrasts <- shrimp_out_model |>
   emmeans(~ stroke*stage, 
@@ -941,7 +1178,10 @@ shrimp_out_contrasts <- as.data.frame(shrimp_out_contrasts) |>
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
 shrimp_out_contrasts
+```
 
+
+```{r}
 shrimp_out_contrast_draws <- shrimp_out_model  |>
   emmeans(~ stroke*stage, 
           epred = TRUE,
@@ -974,8 +1214,10 @@ shrimp_out_temporal_contrasts_fig <- ggplot(shrimp_out_temporal_contrasts, aes(x
 shrimp_out_temporal_contrasts_fig
 ```
 
-###2.4.3 Extracting and plotting model estimates
-####2.4.3.1 Extracting estimates
+### Extracting and plotting model estimates
+
+#### Extracting estimates
+
 ```{r}
 shrimp_out_model_estimates <- shrimp_out_model |> 
   emmeans(~ stroke*stage,
@@ -1000,7 +1242,9 @@ shrimp_out_model_estimates_two <- shrimp_out_model_estimates |>
   dplyr::filter(stroke == "2")|> 
   rename(.value = emmean)
 ```
-####2.4.3.2 Plotting model estimates and raw data
+
+#### Plotting model estimates and raw data
+
 ```{r}
 shrimp_out_model_draws <- shrimp_out_model |> 
   emmeans(~ stroke*stage,
@@ -1059,7 +1303,8 @@ shrimp_out_fig_together
 ```
 
 
-####2.4.3.3 Plotting control estimates and raw data
+#### Plotting control estimates and raw data
+
 ```{r}
 shrimp_out_model_draws <- shrimp_out_model |> 
   emmeans(~ stroke*stage,
@@ -1115,7 +1360,9 @@ shrimp_out_fig_control <- ggplot(shrimp_control_raw_data, aes(y = .value, x = st
 
 shrimp_out_fig_control
 ```
-####2.4.3.4 Plotting 4-stroke estimates and raw data
+
+#### Plotting 4-stroke estimates and raw data
+
 ```{r}
 shrimp_out_control_model_draws <- shrimp_out_model_draws |> 
   dplyr::filter(stroke == "4")
@@ -1154,7 +1401,8 @@ shrimp_out_fig_four <- ggplot(shrimp_four_raw_data, aes(y = .value, x = stage, f
 shrimp_out_fig_four
 ```
 
-####2.4.3.5 Plotting 2-stroke estimates and raw data
+#### Plotting 2-stroke estimates and raw data
+
 ```{r}
 shrimp_out_control_model_draws <- shrimp_out_model_draws |> 
   dplyr::filter(stroke == "2")
@@ -1191,7 +1439,8 @@ shrimp_out_fig_two <- ggplot(shrimp_two_raw_data, aes(y = .value, x = stage, fil
 
 shrimp_out_fig_two
 ```
-####2.4.3.6 Combining plots into one figure
+#### Combining plots into one figure
+
 ```{r}
 shrimp_out_plot3 <- shrimp_out_fig_control + shrimp_out_fig_four + shrimp_out_fig_two + 
   plot_layout(ncol = 3)
@@ -1200,8 +1449,10 @@ shrimp_out_plot3
 ggsave("./3-figs/shrimp_out_plot3.jpeg", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
-###2.4.4 Effects of covariates on the proportion of time shrimp spent outside of the burrow
-####2.4.4.1 Goby number
+### Effects of covariates on the proportion of time shrimp spent outside of the burrow
+
+#### Goby number
+
 ```{r}
 shrimp_out_goby_number_contrasts <- shrimp_out_model |>
   emmeans(~ goby_number, 
@@ -1213,7 +1464,8 @@ shrimp_out_goby_number_contrasts <- shrimp_out_model |>
 shrimp_out_goby_number_contrasts
 ```
 
-####2.4.4.2 Shrimp number
+####  Shrimp number
+
 ```{r}
 shrimp_out_shrimp_number_contrasts <- shrimp_out_model |>
   emmeans(~ shrimp_number, 
@@ -1231,7 +1483,10 @@ shrimp_out_shrimp_number_estimates <- shrimp_out_model |>
           rg.limit =14000)
 
 shrimp_out_shrimp_number_estimates
+```
 
+
+```{r}
 shrimp_out_shrimp_number_contrast_draws <- shrimp_out_model |>
   emmeans(~ shrimp_number, 
           epred = TRUE,
@@ -1243,7 +1498,8 @@ shrimp_out_shrimp_number_contrast_draws <- shrimp_out_model |>
 ggplot(data = shrimp_out_shrimp_number_contrast_draws, aes(x = contrast, y = .value )) +
   stat_halfeye()
 ```
-####2.4.4.3 Shrimp species
+#### Shrimp species
+
 ```{r}
 shrimp_out_shrimp_species_contrasts <- shrimp_out_model |>
   emmeans(~ shrimp_species, 
@@ -1266,8 +1522,10 @@ ggplot(data = shrimp_out_shrimp_species_contrasts_draws, aes(x = contrast, y = .
   stat_halfeye()
 ```
 
-##2.5 Modelling the proportion of time shrimp spent in contact with the goby
-###2.5.1 Checking the response variable distribution
+## 🐟-🦐 Modelling the proportion of time shrimp spent in contact with the goby
+
+### Checking the response variable distribution
+
 ```{r}
 shrimp_contact_df <- final_df |> 
   mutate(is_zero = shrimp_contact == 0)
@@ -1282,7 +1540,8 @@ shrimp_contact_plot
 # Distribution is a zero-one inflated beta distribution, because the value for shrimp_contact is bounded by 0-1 as it is a proportion of the total time and there is values of 0 and 1.
 ```
 
-###2.5.2 Running the model
+### Running the model
+
 ```{r}
 shrimp_contact_model <- brm(
   bf(shrimp_contact ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
@@ -1301,26 +1560,40 @@ shrimp_contact_model <- brm(
 summary(shrimp_contact_model)
 ```
 
-###2.5.3 Model fit and diagnostics
-####2.5.3.1 Model convergence
+### Model fit and diagnostics
+
+#### Model convergence
+
 ```{r}
 extract_rhats(shrimp_contact_model)
 ```
 
-####2.5.3.2 Model fit
+#### Model fit
+
 ```{r}
 #posterior predictive checks
 pp_check(shrimp_contact_model)
 
 pp_check(shrimp_contact_model, type='stat', stat='mean')
+```
 
-#fitted vs predicted values
+
+
+```{r}
 summary(fitted(shrimp_contact_model))
+```
+
+
+
+```{r}
 summary(predict(shrimp_contact_model))
 ```
 
-###2.5.2 Posterior marginal effects
-####2.5.2.1 Pairwise contrasts of stroke and stage
+### Posterior marginal effects
+
+#### Pairwise contrasts of stroke and stage
+
+
 ```{r}
 shrimp_contact_contrasts <- shrimp_contact_model |>
   emmeans(~ stroke*stage, 
@@ -1343,7 +1616,10 @@ shrimp_contact_contrasts <- as.data.frame(shrimp_contact_contrasts) |>
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
 shrimp_contact_contrasts
+```
 
+
+```{r}
 shrimp_contact_contrasts_draws <- shrimp_contact_model  |>
   emmeans(~ stroke*stage, 
           epred = TRUE,
@@ -1362,7 +1638,7 @@ shrimp_contact_temporal_fig<- ggplot(shrimp_contact_temporal_contrasts, aes(x = 
   stat_halfeye(.width = c(0.89, 0.95)) +
   scale_color_manual(values = c(colour11, colour12, colour13)) +
   scale_fill_manual(values = alpha(c(colour1, colour2, colour3), 0.8)) +
-  labs(x = "Difference in the proportion of time spent out of the burrow",
+  labs(x = "Difference in the proportion of time spent in contact",
        y = "Contrasts of the time periods relative to noise exposure",
        fill = "Noise treatment", color = "Noise treatment",
        fill_ramp = "Credible interval") +
@@ -1376,8 +1652,9 @@ shrimp_contact_temporal_fig<- ggplot(shrimp_contact_temporal_contrasts, aes(x = 
 shrimp_contact_temporal_fig
 ```
 
-###2.5.3 Extracting and plotting model estimates
-####2.5.3.1 Extracting estimates
+### Extracting and plotting model estimates
+
+#### Extracting estimates
 ```{r}
 shrimp_contact_model_estimates <- shrimp_contact_model |> 
   emmeans(~ stroke*stage,
@@ -1408,7 +1685,8 @@ shrimp_contact_model_estimates_two <- shrimp_contact_model_estimates |>
   dplyr::filter(stroke == "2")|> 
   rename(.value = emmean)
 ```
-####2.5.3.2 Plotting model estimates and raw data
+#### Plotting model estimates and raw data
+
 ```{r}
 shrimp_contact_model_draws <- shrimp_contact_model |> 
   emmeans(~ stroke*stage,
@@ -1468,7 +1746,8 @@ ggsave("./3-figs/shrimp_contact_fig_together.png", plot = shrimp_contact_fig_tog
 ```
 
 
-####2.5.3.3 Plotting control estimates and raw data
+#### Plotting control estimates and raw data
+
 ```{r}
 shrimp_contact_model_draws <- shrimp_contact_model |> 
   emmeans(~ stroke*stage,
@@ -1523,7 +1802,9 @@ shrimp_contact_fig_control <- ggplot(goby_control_raw_data, aes(y = .value, x = 
 
 shrimp_contact_fig_control
 ```
-####2.5.3.4 Plotting 4-stroke estimates and raw data
+
+#### Plotting 4-stroke estimates and raw data
+
 ```{r}
 shrimp_contact_control_model_draws <- shrimp_contact_model_draws |> 
   dplyr::filter(stroke == "4")
@@ -1561,7 +1842,8 @@ shrimp_contact_fig_four <- ggplot(goby_four_raw_data, aes(y = .value, x = stage,
 shrimp_contact_fig_four
 ```
 
-####2.5.3.5 Plotting 2-stroke estimates and raw data
+#### Plotting 2-stroke estimates and raw data
+
 ```{r}
 shrimp_contact_control_model_draws <- shrimp_contact_model_draws |> 
   dplyr::filter(stroke == "2")
@@ -1597,17 +1879,24 @@ shrimp_contact_fig_two <- ggplot(goby_two_raw_data, aes(y = .value, x = stage, f
 
 shrimp_contact_fig_two
 ```
-####2.5.3.6 Combining plots into one figure
+
+#### Combining plots into one figure
+
 ```{r}
 shrimp_contact_plot3 <- shrimp_contact_fig_control + shrimp_contact_fig_four + shrimp_contact_fig_two + 
   plot_layout(ncol = 3)
+```
 
+
+```{r}
 shrimp_contact_plot3
 ggsave("./3-figs/shrimp_contact_plot3.jpeg", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
-###2.5.4 Modelling the effect of covariates on the proportion of time spent in contact
-####2.5.4.1 Goby number
+### Modelling the effect of covariates on the proportion of time spent in contact
+
+#### Goby number
+
 ```{r}
 shrimp_contact_goby_number_contrasts <- shrimp_contact_model |>
   emmeans(~ goby_number, 
@@ -1619,7 +1908,8 @@ shrimp_contact_goby_number_contrasts <- shrimp_contact_model |>
 shrimp_contact_goby_number_contrasts
 ```
 
-####2.5.4.2 Shrimp number
+#### Shrimp number
+
 ```{r}
 shrimp_contact_shrimp_number_contrasts <- shrimp_contact_model |>
   emmeans(~ shrimp_number, 
@@ -1631,7 +1921,8 @@ shrimp_contact_shrimp_number_contrasts <- shrimp_contact_model |>
 shrimp_contact_shrimp_number_contrasts
 ```
 
-####2.5.4.2 Shrimp species
+#### Shrimp species
+
 ```{r}
 shrimp_contact_shrimp_species_contrasts <- shrimp_contact_model |>
   emmeans(~ shrimp_species, 
@@ -1643,9 +1934,12 @@ shrimp_contact_shrimp_species_contrasts <- shrimp_contact_model |>
 shrimp_contact_shrimp_species_contrasts
 ```
 
-#3 Manuscript output files
-##3.1 Supp tables
-###3.1.1 Model estimates
+# Manuscript output files
+
+## Supp tables
+
+### Model estimates
+
 ```{r}
 goby_out_model_estimates <- goby_out_model_estimates |> 
   mutate(`Behavioural measure` = "Proportion of time gobies spent outside of the burrow")
@@ -1676,7 +1970,8 @@ model_estimates <- model_estimates |>
 write_csv(model_estimates, "./2-data/model_estimates.csv")
 ```
 
-###3.1.2 Pairwise contrasts
+### Pairwise contrasts
+
 ```{r}
 #goby out
 goby_out_contrasts <- goby_out_results.table |> 
@@ -1849,6 +2144,7 @@ shrimp_contact_contrasts_table <- rbind(shrimp_contact_contrasts1, shrimp_contac
 
 write_csv(shrimp_contact_contrasts_table, "./2-data/shrimp_contact_contrasts_table.csv")
 ```
+
 
 ```{r}
 table_S1 <- final_df %>%

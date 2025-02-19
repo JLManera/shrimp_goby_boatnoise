@@ -9,5 +9,4 @@ shrimp_contact_model.rds
 shrimp_out_model.rds
 goby_out_model.rds
 1-videos
-2-data
-3-figs
+/ms_boatnoise_shrimp_goby_cache/

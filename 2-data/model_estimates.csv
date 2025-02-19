@@ -1,0 +1,28 @@
+Behavioural measure,Phase,Noise exposure,Estimated marginal mean,Lower 95% CrI,Upper 95% CrI
+Proportion of time gobies spent outside of the burrow,Pre,control,0.6165405461343042,0.41743099649815024,0.7824748460334912
+Proportion of time gobies spent outside of the burrow,Pre,4-stroke,0.6882999675094372,0.5066285653702622,0.8471161408444455
+Proportion of time gobies spent outside of the burrow,Pre,2-stroke,0.6836595709861069,0.5209136642907102,0.8301616436118635
+Proportion of time gobies spent outside of the burrow,During,control,0.6884474793082689,0.5130458694580854,0.8434950282704147
+Proportion of time gobies spent outside of the burrow,During,4-stroke,0.5330281759162634,0.3490747310928723,0.7149391661026656
+Proportion of time gobies spent outside of the burrow,During,2-stroke,0.623146556255226,0.46227056346664824,0.7686598982302157
+Proportion of time gobies spent outside of the burrow,Post,control,0.713758172839119,0.5250691249098497,0.875634775800962
+Proportion of time gobies spent outside of the burrow,Post,4-stroke,0.6193994181443396,0.4157313825017474,0.8009506834366503
+Proportion of time gobies spent outside of the burrow,Post,2-stroke,0.6158218119658125,0.4526214745861365,0.7643074039574425
+Proportion of time shrimp spent outside of the burrow,Pre,control,0.31105562566906597,0.19394480073900852,0.44406277422182655
+Proportion of time shrimp spent outside of the burrow,Pre,4-stroke,0.3306229064782146,0.19253483713218805,0.48639612715973374
+Proportion of time shrimp spent outside of the burrow,Pre,2-stroke,0.32170956383237825,0.19331171724925605,0.45388722263864106
+Proportion of time shrimp spent outside of the burrow,During,control,0.28598983900146724,0.17975593477167995,0.4114103946738837
+Proportion of time shrimp spent outside of the burrow,During,4-stroke,0.25892216259711065,0.15465993331208153,0.3916331786148624
+Proportion of time shrimp spent outside of the burrow,During,2-stroke,0.2088067940943097,0.12190750313161719,0.3118424344746098
+Proportion of time shrimp spent outside of the burrow,Post,control,0.33348159087373974,0.21247465967276727,0.463344392497498
+Proportion of time shrimp spent outside of the burrow,Post,4-stroke,0.3262620866420732,0.19273463659612666,0.47061105568970535
+Proportion of time shrimp spent outside of the burrow,Post,2-stroke,0.23862641169009885,0.1385768696268766,0.3589094658302704
+Proportion of time shrimp spent in contact with a goby,Pre,control,0.7050246578297101,0.5548278366771001,0.8339999046100448
+Proportion of time shrimp spent in contact with a goby,Pre,4-stroke,0.6893009212602186,0.5230592688283261,0.8280634346057076
+Proportion of time shrimp spent in contact with a goby,Pre,2-stroke,0.6127776977253339,0.4593987152648751,0.7542848510821534
+Proportion of time shrimp spent in contact with a goby,During,control,0.6488437339971366,0.4991426396202691,0.7897399716922203
+Proportion of time shrimp spent in contact with a goby,During,4-stroke,0.7175982749996828,0.5615711517063591,0.8568382965248518
+Proportion of time shrimp spent in contact with a goby,During,2-stroke,0.5833631674869368,0.4287100932420725,0.7201551662777022
+Proportion of time shrimp spent in contact with a goby,Post,control,0.6905964108201093,0.5467256935008467,0.8199855135716468
+Proportion of time shrimp spent in contact with a goby,Post,4-stroke,0.7623786303975086,0.6225846882199744,0.8801669300726698
+Proportion of time shrimp spent in contact with a goby,Post,2-stroke,0.6397285749855105,0.4872690169351456,0.7778386241726606
