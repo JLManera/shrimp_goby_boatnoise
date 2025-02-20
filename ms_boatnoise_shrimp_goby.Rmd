@@ -85,6 +85,7 @@ These are the R packages required for this script. You will need to install a pa
 
 ```{r, message=FALSE, results='hide'}
 #install.packages("pacman")
+#install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 #require("pacman") 
 pacman::p_load(tidyverse, ggplot2, brms, cmdstanr, broom, broom.mixed, tidybayes, ggthemes, emmeans, ggdist, gridExtra, bayesplot, see, patchwork, ggtext, extraDistr, gghalves, ggpp, rstan, gt) 
 
