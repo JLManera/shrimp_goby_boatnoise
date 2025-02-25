@@ -30,23 +30,72 @@ knit: |
 # 📕 READ ME   
 <!------------------------------->
 
-**SUMMARY**  
+     
+**🚧 UNPUBLISHED AND ONGOING 🚧 **   
+The data in this script is currently **unpublished**. There may be part of this script that are currently incomplete. This script has been made publicly available for easy of sharing with collaborators and colleagues who are interested in the progression of the project and for complete transparency.   
 
+-------
+
+**SUMMARY**  
+Human activities are reshaping marine soundscapes, with boat noise a near-constant source of underwater noise and a primary contributor to rising oceanic noise pollution. Despite increasing concern, empirical data for most marine life, particularly in natural settings, remains sparse. Fish and crustaceans are underrepresented in noise pollution research, despite their auditory ranges make them especially susceptible to low-frequency typical of boat engines. Accordingly, this study employs a field-based experimental approach to investigate the impacts of boat noise on an iconic behavioural mutualism between gobies (Amblyeleotris steinitzi) and shrimp (Alpheus spp). Our findings demonstrate that both species exhibit increased burrow use in response to boat noise, suggesting a heightened perception of risk. Despite the perceived risk triggered by boat noise, the behaviour of the two species remained tightly correlated and communication—measured as antennae contact—remained unchanged. Notably, shrimp exhibited stronger responses to 2-stroke engines, whereas gobies responded more strongly to 4-stroke engines, indicating species-specific sensitivities to different noise spectra. These results highlight the complex and taxon-specific effects of noise pollution on marine species and emphasize the need for targeted research to inform conservation strategies aimed at mitigating anthropogenic acoustic disturbances in marine ecosystems .
+
+-------
 
 **AIM**  
+This study employs a field-based experimental approach to investigate the impacts of boat noise on an iconic behavioural mutualism between gobies (Amblyeleotris steinitzi) and shrimp (Alpheus spp). We test the hypothesis that boat noise exposure (2-stroke and 4-stroke engines) would alter the mutualism of these two species by independently altering perceived risk, leading to shifts in behaviour, and potentially disrupting their communication.
 
+-------
 
 **AUTHORS**  
+Jack L. Manera^1†^   
+Jake M. Martin^1,2,3†^    
+Maria M. Palacios^4^ 
+Rachel T Mason^3^    
+Mark I. McCormick^5^    
+Bob BM. Wong^1^    
 
+-------
 
-**AFFILIATIONS** 
+**AFFILIATIONS**    
+^1^School of Biological Sciences, Monash University, Clayton, Victoria 3800, Australia   
+^2^School of Life and Environmental Sciences, Deakin University, Waurn Ponds, Victoria 3216, Australia   
+^3^Department of Wildlife, Fish, and Environmental Studies, Swedish University of Agricultural Sciences, Umeå, Sweden   
+^4^Centre for Nature Positive Solutions, School of Science, RMIT University, Melbourne, Victoria 3100, Australia   
+^5^Coastal Marine Field Station, School of Science, University of Waikato, Tauranga, New Zealand   
+^†^These authors contributed equally as lead investigators 
 
+-------
 
 **CONTRIBUTOR ROLES**  
+*🚧 to be added 🚧*
+
+<!------------------------------->
+# 📑 Sharing/accessing and citing
+<!------------------------------->
+
+**Licenses/restrictions placed on the data:** CC-BY 4.0  
+
+**Link to the associated publication:**     
+🚧 *To be added* 🚧     
+
+**Recommended citation for this data:**      
+🚧 *To be added based on OSF DOI* 🚧     
+
 
 <!------------------------------->
 # 📧 Contact
 <!------------------------------->
+
+**Jack L. Manera**    
+
+📧 **Email:** [jack.manera@monash.edu](mailto:jack.manera@monash.edu)  
+  
+🌐 **Web:** *🚧 to be added 🚧*  
+  
+🐙 **GitHub**: [JLManera](https://github.com/JLManera)    
+
+     
+-------
 
 **Jake M. Martin**
   
@@ -56,7 +105,7 @@ knit: |
   
 🌐 **Web:** [jakemartin.org](https://jakemartin.org/)  
   
-🐙 **GitHub**: [JakeMartinResearch](https://github.com/JakeMartinResearch)  
+🐙 **GitHub**: [JakeMartinResearch](https://github.com/JakeMartinResearch)   
 
 <!------------------------------->
 # ⚙️ Knit settings 
@@ -86,7 +135,7 @@ These are the R packages required for this script. You will need to install a pa
 ```{r, message=FALSE, results='hide'}
 #install.packages("pacman")
 #install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
-#require("pacman") 
+
 pacman::p_load(tidyverse, ggplot2, brms, cmdstanr, broom, broom.mixed, tidybayes, ggthemes, emmeans, ggdist, gridExtra, bayesplot, see, patchwork, ggtext, extraDistr, gghalves, ggpp, rstan, gt) 
 
 #remotes::install_github("stan-dev/loo")
@@ -111,25 +160,33 @@ colour12 <- "#A38346"
 colour13 <- "#9C4811"
 ```
 
+## Directories
+
+Assigning the directory so that the code can be universally read on any computer as long as the entire project file is shared. This is a relative path.  
+
+```{r}
+directory <- './2-data/'
+```
+
 ## Data
 
 Here we load in the three date files 
 
-- **💿 BORIS_output.csv**: This is the summary output from the BORIS, the key logging software used for behavioural observations. This includes the occurrence count and total duration of each of the measured behaviour endpoints, for each shrimp and each goby across all trials. They are identified with the code column.  
+- **💿 BORIS_output.csv**: This is the summary output from the BORIS, the key logging software used for behavioural observations. This includes the occurrence count and total duration of each of the measured behaviour endpoints, for each shrimp and each goby across all trials. They are identified with the code column.     
+
+```{r}
+BORIS_output <- read.csv("./2-data/BORIS_output.csv")
+```
+
 - **💿 Video_codes.csv**: This has meta data for each video, include treatment information and associated codes.
+
+```{r}
+Video_codes <- read.csv("./2-data/Video_codes.csv")
+```
+
 - **💿 species.csv**: This is the species name for the shrimp in each of the videos
 
 ```{r}
-#assigning the directory so that the code can be universally read on any computer as long as the entire project file is shared
-directory <- './2-data/'
-
-#reading in the coded raw BORIS output
-BORIS_output <- read.csv("./2-data/BORIS_output.csv")
-
-#reading in the decoder
-Video_codes <- read.csv("./2-data/Video_codes.csv")
-
-#reading in shrimp species information
 shrimp_species <- read.csv("./2-data/species.csv")
 ```
 
@@ -261,7 +318,7 @@ Here we are dealing with miss focal species during specific segments of the tria
 
 We make the assumption that when a **goby is present in other videos** (i.e. we know it exists) but **missing from a given trial segment** it is **'away'** and out of frame for the entire trial. In the case of shrimps, we assume it **inside the burrow the entire time**. These assumptions are based off our teams observation of these species, and the previously reported biological tendencies of each species. Because of this assumption we are assigning the respective value to the behviour in cases where one of the species is known to be present in a burrow but not viewed for the length of the trial.   
 
-🚧 Jack, maybe you could break this up and add a little more detial, I got a little lost in the code 🚧 
+🚧 Jack, maybe you could break this up and add a little more detail, I got a little lost in the code 🚧 
 
 ```{r}
 fixeddf1 <- workingdf3 |> 
@@ -379,7 +436,7 @@ print(filled_burrow_counts)
 
 ### Changing dataframe format 
 
-Restructure the data frame for easier analysis   
+Restructure the data frame for easier analysis. We also write this file as **💿 final_df.csv** in the the 📁 `./2-data` folder. This is what we will use for analysis.  
 
 ```{r}
 workingdf7 <- wide_data_filled |> 
@@ -550,14 +607,9 @@ pp_check(prior_model, ndraws=20)
 pp_check(prior_model, ndraws=100, type = 'stat', stat = 'mean')
 ```
 
+### Final model structure
 
-### Running model
-
-Now we run and save the model.
-
-⏭️ **Skip this step** if you have downloaded the saved model 'goby_out_model.rds'. You will load the model in the next step.
-
-🚧 Jack, you might consider wiring the brms models to a folder called '4-mods' 🚧
+This is the structure of the final model
 
 ```{r}
 goby_out_formula_1 <- bf(
@@ -574,7 +626,13 @@ goby_out_formula_1 <- bf(
 )
 ```
 
-Run model    
+### Running model
+
+Now we run and save the model.
+
+⏭️ **Skip this step** if you have downloaded the saved model 'goby_out_model.rds'. You will load the model in the next step.
+
+🚧 Jack, you might consider wiring the brms models to a folder called '4-mods' 🚧   
 
 ```{r}
 # goby_out_model <- brm(
@@ -592,7 +650,7 @@ Run model
 # )
 ```
 
-Here we reload the model.   
+Here we reload the saved model.   
 
 ```{r}
 goby_out_model <-  readRDS(file = "goby_out_model.rds")
@@ -953,6 +1011,7 @@ goby_out_plot3 <- goby_out_fig_control + goby_out_fig_four + goby_out_fig_two +
 ```{r}
 goby_out_plot3
 ggsave("./3-figs/goby_out_plot3.jpeg", plot = goby_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./3-figs/goby_out_plot3.pdf", plot = goby_out_plot3, units = "px", width = 2200, height = 1400)
 ```
 
 ### Effects of covariates on the proportion of time gobies spent outside of the burrow
@@ -1440,6 +1499,7 @@ shrimp_out_fig_two <- ggplot(shrimp_two_raw_data, aes(y = .value, x = stage, fil
 
 shrimp_out_fig_two
 ```
+
 #### Combining plots into one figure
 
 ```{r}
@@ -1448,6 +1508,7 @@ shrimp_out_plot3 <- shrimp_out_fig_control + shrimp_out_fig_four + shrimp_out_fi
 
 shrimp_out_plot3
 ggsave("./3-figs/shrimp_out_plot3.jpeg", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./3-figs/shrimp_out_plot3.pdf", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400)
 ```
 
 ### Effects of covariates on the proportion of time shrimp spent outside of the burrow
@@ -1892,6 +1953,7 @@ shrimp_contact_plot3 <- shrimp_contact_fig_control + shrimp_contact_fig_four + s
 ```{r}
 shrimp_contact_plot3
 ggsave("./3-figs/shrimp_contact_plot3.jpeg", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./3-figs/shrimp_contact_plot3.pdf", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400)
 ```
 
 ### Modelling the effect of covariates on the proportion of time spent in contact
