@@ -128,17 +128,13 @@ tidy = TRUE
 # 📦 Required packages
 <!------------------------------->
 
-These are the R packages required for this script. You will need to install a package called pacman to run the p_load function.   
-
-🚧 Do we need `stan-dev/loo` 🚧   
+These are the R packages required for this script. You will need to install a package called pacman to run the p_load function and cmdstanr as a lightwight backend for running the brms models.    
 
 ```{r, message=FALSE, results='hide'}
 #install.packages("pacman")
 #install.packages("cmdstanr", repos = c('https://stan-dev.r-universe.dev', getOption("repos")))
 
 pacman::p_load(tidyverse, ggplot2, brms, cmdstanr, broom, broom.mixed, tidybayes, ggthemes, emmeans, ggdist, gridExtra, bayesplot, see, patchwork, ggtext, extraDistr, gghalves, ggpp, rstan, gt) 
-
-#remotes::install_github("stan-dev/loo")
 ```
 
 <!------------------------------->
@@ -312,13 +308,20 @@ workingdf3 <- workingdf2 |>
   dplyr::filter(sum(averageduration) != 0)
 ```
 
-### Assigning values to missing entries
+### Assigning Values to Zero Entries
 
-Here we are dealing with miss focal species during specific segments of the trial.   
+During some trial phases, only one individual of a species was observed at a time. However, we know from observations in other phases of the same trial that multiple individuals were actually present. For example, in burrow X, only a single shrimp may have been seen during the noise exposure phase, but two shrimp were observed at the same time in the pre-noise exposure phase.
 
-We make the assumption that when a **goby is present in other videos** (i.e. we know it exists) but **missing from a given trial segment** it is **'away'** and out of frame for the entire trial. In the case of shrimps, we assume it **inside the burrow the entire time**. These assumptions are based off our teams observation of these species, and the previously reported biological tendencies of each species. Because of this assumption we are assigning the respective value to the behviour in cases where one of the species is known to be present in a burrow but not viewed for the length of the trial.   
+This issue leads to incomplete behavioral data because the second individual is assigned zeros across all behavioral states. However, since the individual does exist, it must be in one of the four behavioral states: INSIDE, EDGE, NEAR, or AWAY. This suggests that the individual either:
+(1) Remained out of frame ("AWAY") for the entire phase.
+(2) Stayed inside the burrow ("INSIDE") for the entire phase.
+(3) Alternated visibility with the first individual, meaning only one individual of that species was observed at any given time.
 
-🚧 Jack, maybe you could break this up and add a little more detail, I got a little lost in the code 🚧 
+To correct for this, we apply the following biologically informed assumptions:
+- If **a goby is observed in other videos but missing from a given phase**, it is **"away"** (out of frame for the entire phase).
+- If **a shrimp is missing**, it is **"inside"** the burrow for the entire phase.
+
+These assumptions are based on our team's direct observations and previously documented biological tendencies of each species. While they are well-supported for cases (1) and (2), case (3) presents a challenge, as individual identity could not be maintained. Since behaviors could not be reliably assigned to a specific individual, we instead compute species-level averages for each burrow in the following code. This approach ensures that even if individuals were alternating in visibility, assigning one individual as "away" or "inside" for an entire trial does not compromise the overall behavioral representation. By averaging at the species level, we capture the broader behavioral patterns of the group.
 
 ```{r}
 fixeddf1 <- workingdf3 |> 
@@ -341,7 +344,13 @@ workingdf5 <- workingdf4 |>
   dplyr::mutate(mean_duration = mean(duration)) |> 
   ungroup() |> 
   dplyr::filter(individual == 1) 
+```
 
+###Converting durations to proportions
+
+Here we converte absolute duration of each behaviour to proportional time budgets (0-1 scale).
+
+```{r}
 #transforming the data frame into wide format and turning time spent in each zone into a proportion of the total time (i.e. a value between 0 and 1)
 wide_data <- workingdf5 |>
   pivot_wider(
@@ -364,7 +373,13 @@ wide_data <- wide_data |>
          shrimp_contact = CONTACT/(CONTACT+APART)
          ) |> 
   dplyr::select(-INSIDE, -EDGE, -NEAR, -AWAY, -CONTACT, -APART)
+```
 
+###Validating complete burrow records
+
+We identified and removed burrows that lacked records for both species. Without evidence of both species, we could not confidently confirm their coexistence in the burrow. Therefore, to ensure a focus on mutualistic pairs, we excluded partial records where only one species was observed.
+
+```{r}
 #checking if every burrow contains observations for both 'Shrimp' and 'Goby'
 burrow_values <- unique(wide_data$burrow) 
 has_shrimp <- burrow_values %in% wide_data$burrow[wide_data$species == 'Shrimp'] 
@@ -383,7 +398,9 @@ burrow_counts <- table(wide_data$burrow)
 print(burrow_counts)
 ```
 
-There are some burrows that are missing stages due to the animal not being observered at all during that observation so we will make some conditional assumptions and fill in the missing values.   
+### Assigning values to missing entries
+
+In some cases, a species was not observed during an entire video, although other videos confirmed its presence in the same burrow. These instances were not captured by the earlier code designed for "Assigning Values to Zero Entries." As a result, we need to assign values to these missing entries using the same approach and assumptions. Specifically, all gobies are considered AWAY for the entire trial segment, while all shrimp are considered inside the burrow for the entire segment.
 
 ```{r}
 #a function to fill the missing stages for each species within each burrow
@@ -429,7 +446,7 @@ fixeddf3 <- wide_data |>
 
 wide_data_filled <- rbind(wide_data, fixeddf3)
   
-#Checking to see the count of observations per burrow
+#Checking to see the count of observations per burrow to ensure the code has worked
 filled_burrow_counts <- table(wide_data_filled$burrow)
 print(filled_burrow_counts)
 ```
