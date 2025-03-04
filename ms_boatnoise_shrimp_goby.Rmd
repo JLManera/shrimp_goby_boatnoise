@@ -604,20 +604,24 @@ prior_formula <- bf(
   family = zero_one_inflated_beta()
 )
 
-prior_model <- brm(
-  prior_formula,
-  data = final_df,
-  family = zero_one_inflated_beta(),
-  prior = priors,
-  control = list(adapt_delta = 0.99,
-                 max_treedepth = 12),
-  chains = 4, iter = 1000, warmup = 100,
-  cores = 4, threads = threading(2),
-  backend = "cmdstanr",
-  seed = 1,
-  sample_prior = "only",
-  file = "prior_check"
-)
+#Now we run and save the model. **unhash** the code below if you haven't downloaded the saved model 'goby_out_model.rds' in the "3-models" folder. 
+
+# prior_model <- brm(
+#   prior_formula,
+#   data = final_df,
+#   family = zero_one_inflated_beta(),
+#   prior = priors,
+#   control = list(adapt_delta = 0.99,
+#                  max_treedepth = 12),
+#   chains = 4, iter = 1000, warmup = 100,
+#   cores = 4, threads = threading(2),
+#   backend = "cmdstanr",
+#   seed = 1,
+#   sample_prior = "only",
+#   file = "./3-models/prior_check"
+# )
+
+prior_model <-  readRDS(file = "./3-models/goby_out_model.rds")
 
 color_scheme_set("red")
 pp_check(prior_model, ndraws=20)
@@ -649,8 +653,6 @@ Now we run and save the model.
 
 ⏭️ **Skip this step** if you have downloaded the saved model 'goby_out_model.rds'. You will load the model in the next step.
 
-🚧 Jack, you might consider wiring the brms models to a folder called '4-mods' 🚧   
-
 ```{r}
 # goby_out_model <- brm(
 #   goby_out_formula_1,
@@ -663,14 +665,14 @@ Now we run and save the model.
 #   cores = 4, threads = threading(2),
 #   backend = "cmdstanr",
 #   seed = 1,
-#   file = "goby_out_model"
+#   file = "./3-models/goby_out_model"
 # )
 ```
 
 Here we reload the saved model.   
 
 ```{r}
-goby_out_model <-  readRDS(file = "goby_out_model.rds")
+goby_out_model <-  readRDS(file = "./3-models/goby_out_model.rds")
 ```
 
 Looking at the basic model summary
@@ -1027,11 +1029,11 @@ goby_out_plot3 <- goby_out_fig_control + goby_out_fig_four + goby_out_fig_two +
 
 ```{r}
 goby_out_plot3
-ggsave("./2-figs/goby_out_plot3.jpeg", plot = goby_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
-ggsave("./2-figs/goby_out_plot3.pdf", plot = goby_out_plot3, units = "px", width = 2200, height = 1400)
+ggsave("./2-figures/goby_out_plot3.jpeg", plot = goby_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./2-figures/goby_out_plot3.pdf", plot = goby_out_plot3, units = "px", width = 2200, height = 1400)
 ```
 
-### Effects of covariates on the proportion of time gobies spent outside of the burrow
+### Estimating the effects of covariates on the proportion of time gobies spent outside of the burrow
 
 #### Goby number
 
@@ -1192,14 +1194,14 @@ Now we run and save the model.
 #   cores = 4, threads = threading(2),
 #   backend = "cmdstanr",
 #   seed = 1,
-#   file = "shrimp_out_model"
+#   file = "./3-models/shrimp_out_model"
 # )
 ```
 
 Here we reload the model.   
 
 ```{r}
-shrimp_out_model <-  readRDS(file = "shrimp_out_model.rds")
+shrimp_out_model <-  readRDS(file = "./3-models/shrimp_out_model.rds")
 ```
 
 
@@ -1524,11 +1526,11 @@ shrimp_out_plot3 <- shrimp_out_fig_control + shrimp_out_fig_four + shrimp_out_fi
   plot_layout(ncol = 3)
 
 shrimp_out_plot3
-ggsave("./2-figs/shrimp_out_plot3.jpeg", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
-ggsave("./2-figs/shrimp_out_plot3.pdf", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400)
+ggsave("./2-figures/shrimp_out_plot3.jpeg", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./2-figures/shrimp_out_plot3.pdf", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400)
 ```
 
-### Effects of covariates on the proportion of time shrimp spent outside of the burrow
+### Estimating the effects of covariates on the proportion of time shrimp spent outside of the burrow
 
 #### Goby number
 
@@ -1621,21 +1623,34 @@ shrimp_contact_plot
 
 ### Running the model
 
-```{r}
-shrimp_contact_model <- brm(
-  bf(shrimp_contact ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
-     phi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
-     zoi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
-     coi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow)
-     ),
-  data = final_df,
-  prior = priors,
-  family = zero_one_inflated_beta(),
-  control = list(adapt_delta = 0.99, max_treedepth = 12),
-  chains = 4, iter = 6000, warmup = 1000, seed = 1, backend = "cmdstanr", cores = 4, threads = threading(2),
-  file = "shrimp_contact_model"
-)
+Now we run and save the model.
 
+⏭️ **Skip this step** if you have downloaded the saved model 'shrimp_contact_model.rds'. You will load the model in the next step.
+
+```{r}
+# shrimp_contact_model <- brm(
+#   bf(shrimp_contact ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+#      phi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+#      zoi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+#      coi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow)
+#      ),
+#   data = final_df,
+#   prior = priors,
+#   family = zero_one_inflated_beta(),
+#   control = list(adapt_delta = 0.99, max_treedepth = 12),
+#   chains = 4, iter = 6000, warmup = 1000, seed = 1, backend = "cmdstanr", cores = 4, threads = threading(2),
+#   file = "./3-models/shrimp_contact_model"
+# )
+```
+
+Here we reload the model.   
+
+```{r}
+shrimp_contact_model <-  readRDS(file = "./3-models/shrimp_contact_model.rds")
+```
+
+
+```{r}
 summary(shrimp_contact_model)
 ```
 
@@ -1821,7 +1836,7 @@ shrimp_contact_fig_together <- ggplot(data = shrimp_contact_raw_data, aes(x = st
   )
 
 shrimp_contact_fig_together
-ggsave("./2-figs/shrimp_contact_fig_together.png", plot = shrimp_contact_fig_together, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./2-figures/shrimp_contact_fig_together.png", plot = shrimp_contact_fig_together, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 
@@ -1969,11 +1984,11 @@ shrimp_contact_plot3 <- shrimp_contact_fig_control + shrimp_contact_fig_four + s
 
 ```{r}
 shrimp_contact_plot3
-ggsave("./2-figs/shrimp_contact_plot3.jpeg", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
-ggsave("./2-figs/shrimp_contact_plot3.pdf", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400)
+ggsave("./2-figures/shrimp_contact_plot3.jpeg", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
+ggsave("./2-figures/shrimp_contact_plot3.pdf", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400)
 ```
 
-### Modelling the effect of covariates on the proportion of time spent in contact
+### Estimating the effect of covariates on the proportion of time spent in contact
 
 #### Goby number
 
