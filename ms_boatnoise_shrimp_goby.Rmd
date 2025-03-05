@@ -713,7 +713,6 @@ extract_rhats(goby_out_model)
 Now we will asses model fit.   
 
 ```{r}
-#posterior predictive checks
 pp_check(goby_out_model, ndraws = 50)
 
 pp_check(goby_out_model, type='stat', stat='mean')
@@ -1239,6 +1238,9 @@ To compare with a summary of the predicted data, they seem to align very nicely.
 summary(predict(shrimp_out_model))
 ```
 
+```{r}
+loo(shrimp_out_model)
+```
 
 ### Posterior marginal effects
 
@@ -2255,3 +2257,193 @@ table_S1 <- final_df %>%
          Control = control)
 ```
 
+
+#Delete me I am one of Jack's rabbit holes 
+
+```{r}
+priors <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
+            set_prior("logistic(0, 3)", class = "Intercept", dpar = "coi"),
+            set_prior("logistic(0, 3)", class = "Intercept", dpar = "zoi"),
+            set_prior("student_t(3, 0, 2.5)", class = "Intercept", dpar = "phi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "phi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "zoi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "coi", lb = 0),
+            set_prior("normal(0, 3)", class = "b"),
+            set_prior("normal(0, 3)", class = "b", dpar = "phi"),
+            set_prior("normal(0, 3)", class = "b", dpar = "zoi"),
+            set_prior("normal(0, 3)", class = "b", dpar = "coi"))
+
+
+priors1 <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
+            set_prior("logistic(0, 3)", class = "Intercept", dpar = "zoi"),
+            set_prior("student_t(3, 0, 2.5)", class = "Intercept", dpar = "phi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "phi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "zoi", lb = 0),
+            set_prior("normal(0, 3)", class = "b"),
+            set_prior("normal(0, 3)", class = "b", dpar = "phi"),
+            set_prior("normal(0, 3)", class = "b", dpar = "zoi"))
+
+priors2 <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
+            set_prior("normal(0, 3)", class = "b"))
+
+priors3 <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
+            set_prior("logistic(0, 3)", class = "Intercept", dpar = "coi"),
+            set_prior("logistic(0, 3)", class = "Intercept", dpar = "zoi"),
+            set_prior("student_t(3, 0, 2.5)", class = "Intercept", dpar = "phi", lb = 0),
+            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
+            set_prior("normal(0, 3)", class = "b"),
+            set_prior("normal(0, 3)", class = "b", dpar = "phi"),
+            set_prior("normal(0, 3)", class = "b", dpar = "zoi"),
+            set_prior("normal(0, 3)", class = "b", dpar = "coi"))
+
+priors4 <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
+            set_prior("normal(0, 3)", class = "b"))
+```
+
+```{r}
+goby_out_formula_simple1 <- bf(
+  # mu (mean) part
+  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # phi (precision) part
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # alpha (zero-one-inflation) part
+  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # The one-inflated part, conditional on the 0s
+  coi ~ 1,
+  
+  family = zero_one_inflated_beta()
+)
+
+goby_out_model_simple1 <- brm(
+  goby_out_formula_simple1,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors1,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1
+)
+```
+
+
+```{r}
+goby_out_formula_simple2 <- bf(
+  # mu (mean) part
+  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # phi (precision) part
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
+  # alpha (zero-one-inflation) part
+  zoi ~ 1,
+  # The one-inflated part, conditional on the 0s
+  coi ~ 1,
+  
+  family = zero_one_inflated_beta()
+)
+
+goby_out_model_simple2 <- brm(
+  goby_out_formula_simple2,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors2,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1
+)
+```
+
+```{r}
+goby_out_formula_simple3 <- bf(
+  # mu (mean) part
+  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  # phi (precision) part
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
+  # alpha (zero-one-inflation) part
+  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
+  # The one-inflated part, conditional on the 0s
+  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
+  
+  family = zero_one_inflated_beta()
+)
+
+goby_out_model_simple3 <- brm(
+  goby_out_formula_simple3,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors3,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1
+)
+```
+
+```{r}
+goby_out_formula_simple4 <- bf(
+  # mu (mean) part
+  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
+  # phi (precision) part
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
+  # alpha (zero-one-inflation) part
+  zoi ~ 1,
+  # The one-inflated part, conditional on the 0s
+  coi ~ 1,
+  
+  family = zero_one_inflated_beta()
+)
+
+goby_out_model_simple4 <- brm(
+  goby_out_formula_simple4,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors4,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1
+)
+```
+
+
+```{r}
+pp_check(goby_out_model, ndraws = 50)
+pp_check(goby_out_model_simple1, ndraws = 50)
+pp_check(goby_out_model_simple2, ndraws = 50)
+pp_check(goby_out_model_simple3, ndraws = 50)
+pp_check(goby_out_model_simple4, ndraws = 50)
+pp_check(goby_out_model, type='stat', stat='mean')
+pp_check(goby_out_model_simple1, type='stat', stat='mean')
+pp_check(goby_out_model_simple2, type='stat', stat='mean')
+pp_check(goby_out_model_simple3, type='stat', stat='mean')
+pp_check(goby_out_model_simple4, type='stat', stat='mean')
+```
+
+```{r}
+loo(goby_out_model_simple1)
+```
+
+
+```{r}
+loo(goby_out_model_simple2)
+```
+
+
+```{r}
+loo(goby_out_model_simple3)
+```
+
+```{r}
+loo(goby_out_model_simple4)
+```
