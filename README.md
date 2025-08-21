@@ -12,6 +12,10 @@ Manera J.L., Martin J.M., Palacios M.M., Mason R.T., McCormick M.I., Wong B.B.M.
 ##### Contact:
 Jack L. Manera – [jack.manera@monash.edu](mailto:jack.manera@monash.edu)
 
+##### Repository links:
+[GitHub](https://github.com/JLManera/shrimp_goby_boatnoise)
+[OSF](https://osf.io/3x5yf/?view_only=dff0b2d2661142f7bab5e4d69cdbd75a)
+
 ##### Licencing:
 CC BY-NC-SA 4.0 - [Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
