@@ -1,0 +1,20 @@
+Predictor variable,Contrast,Estimated marginal difference,Lower 95% CrI,Upper 95% CrI
+Treatment and phase interaction,2-Stroke Pre - 2-Stroke During,0.111,0.03,0.195
+Treatment and phase interaction,2-Stroke Pre - 2-Stroke Post,0.082,-0.003,0.166
+Treatment and phase interaction,4-Stroke Pre - 4-Stroke During,0.071,-0.035,0.183
+Treatment and phase interaction,4-Stroke Pre - 4-Stroke Post,0.004,-0.109,0.119
+Treatment and phase interaction,4-Stroke Pre - 2-Stroke Pre,0.008,-0.109,0.142
+Treatment and phase interaction,Control Pre - Control During,0.024,-0.068,0.117
+Treatment and phase interaction,Control Pre - Control Post,-0.021,-0.113,0.068
+Treatment and phase interaction,Control Pre - 2-Stroke Pre,-0.011,-0.131,0.112
+Treatment and phase interaction,Control Pre - 4-Stroke Pre,-0.019,-0.152,0.113
+Number of gobies,2 gobies - 1 goby,0.067,-0.019,0.16
+Number of shrimp,2 shrimp - 1 shrimp,0.117,0.022,0.203
+Number of shrimp,3 shrimp - 1 shrimp,0.086,-0.108,0.302
+Number of shrimp,3 shrimp - 2 shrimp,-0.032,-0.221,0.171
+Shrimp species,mannarensis - bellulus,0.002,-0.175,0.155
+Shrimp species,sciolii - bellulus,-0.099,-0.302,0.09
+Shrimp species,sciolii - mannarensis,-0.103,-0.221,0.039
+Shrimp species,unknown - bellulus,-0.011,-0.205,0.16
+Shrimp species,unknown - mannarensis,-0.013,-0.103,0.091
+Shrimp species,unknown - sciolii,0.089,-0.059,0.237

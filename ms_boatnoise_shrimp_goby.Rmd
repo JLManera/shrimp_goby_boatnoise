@@ -37,7 +37,7 @@ The data in this script is currently **unpublished**. There may be part of this 
 -------
 
 **SUMMARY**  
-Human activities are reshaping marine soundscapes globally, with persistent low-frequency noise from boat traffic recognised as a primary driver of marine noise pollution. Despite growing concern, empirical data for most marine life, in natural settings, remains sparse, particularly for fish and crustaceans whose auditory ranges overlap with the frequencies of boat noise. Accordingly, we conducted a field experiment to evaluate how boat noise from different engine types (2-stroke and 4-stroke) affects the mutualistic partnership between Steinitz’s goby (Amblyeleotris steinitzi) and snapping shrimp (Alpheus spp.). Across 123 mutualistic partnerships, we recorded behavioural responses before, during, and after noise exposure. Both species increased burrow use during noise exposure, indicating heightened risk perception, yet their tactile communication—critical for the functioning of the mutualism—remained unaltered. Notably, gobies responded more strongly to 4-stroke boat noise, reducing time outside their burrows by 22%, while shrimp were more sensitive to 2-stroke noise, reducing burrow use by 34%, reflecting species-specific sensitivities to different noise spectra. Behavioural changes were transient, rapidly reverting to baseline levels after the noise exposure stopped. These findings highlight divergent vulnerabilities tied to different engine acoustics and emphasise the need for targeted research to inform strategies for mitigating marine noise pollution.
+Persistent noise pollution produced by boat traffic is reshaping marine soundscapes globally. Despite growing ecological concern, most studies to date have focused on individual-level effects under laboratory conditions, leaving major gaps in our understanding of how boat noise shapes species interactions in the wild. Using field-based behavioural assays, we investigate how boat noise from different engine types (4-stroke and 2-stroke) affects the mutualistic partnership between Steinitz’s goby (Amblyeleotris steinitzi) and snapping shrimp (Alpheus spp.). Across 123 partnerships, we recorded behavioural responses before, during, and after noise exposure. Gobies increased burrow use during 4-stroke boat noise exposure, while shrimp responded stronger to 2-stroke noise—reflecting taxon-specific sensitivities to different noise spectra. Despite these shifts, tactile partner communication remained robust across treatments. These findings highlight divergent vulnerabilities between species tied to different engine acoustics, and emphasise the need for targeted research to inform strategies for mitigating marine noise pollution.
 
 -------
 
@@ -67,19 +67,20 @@ Bob BM. Wong^1^
 -------
 
 **CONTRIBUTOR ROLES**  
-*🚧 to be added 🚧*
+Here, we report a list of the author's roles using the Contributor Role Taxonomy (CRediT). Jack L. Manera: Data curation (lead), Formal analysis (lead), Investigation (contributor), Methodology (contributor), Visualization (lead), Writing – Original Draft Preparation (co-lead), and Writing – Review & Editing (co-lead). Jake M. Martin: Data curation, Formal analysis, Supervision, Methodology, Writing – Original Draft Preparation (co-lead), and Writing – Review & Editing (co-lead). Maria M. Palacios: Conceptualisation, Investigation, Methodology, Writing – Review & Editing. Rachel T. Mason: Data curation, Writing – Review & Editing. Mark I. McCormick: Conceptualisation, Investigation, Methodology, Writing – Review & Editing. Bob BM. Wong: Conceptualisation, Investigation, Methodology, Funding Acquisition, Writing – Review & Editing. 
 
 <!------------------------------->
 # 📑 Sharing/accessing and citing
 <!------------------------------->
 
-**Licenses/restrictions placed on the data:** CC-BY 4.0  
+**Licenses/restrictions placed on the data:**
+CC BY-NC-SA 4.0 Attribution-NonCommercial-ShareAlike 4.0 International [https://creativecommons.org/licenses/by-nc-sa/4.0/]
 
 **Link to the associated publication:**     
-🚧 *To be added* 🚧     
+(to be updated upon publication)
 
 **Recommended citation for this data:**      
-🚧 *To be added based on OSF DOI* 🚧     
+Manera JL, Martin JM, Palacios MM, Mason RT, McCormick MI, Wong BBM. 2025. Data from: Boat noise alters behaviour in a fish-shrimp mutualism. DOI: 10.17605/OSF.IO/3X5YF. (to be updated upon publication)
 
 
 <!------------------------------->
@@ -88,13 +89,10 @@ Bob BM. Wong^1^
 
 **Jack L. Manera**    
 
-📧 **Email:** [jack.manera@monash.edu](mailto:jack.manera@monash.edu)  
+📧 **Email:** [jack.manera@monash.edu](mailto:jack.manera@monash.edu)
   
-🌐 **Web:** *🚧 to be added 🚧*  
-  
-🐙 **GitHub**: [JLManera](https://github.com/JLManera)    
+🐙 **GitHub**: [JLManera](https://github.com/JLManera)
 
-     
 -------
 
 **Jake M. Martin**
@@ -354,7 +352,7 @@ Here we converte absolute duration of each behaviour to proportional time budget
 #transforming the data frame into wide format and turning time spent in each zone into a proportion of the total time (i.e. a value between 0 and 1)
 wide_data <- workingdf5 |>
   pivot_wider(
-    id_cols = c(burrow_species, burrow_species_stage, burrow, stage, species, boat_id, stroke, site, number_conspecifics, shrimp_species),
+    id_cols = c(burrow_species, burrow_species_stage, burrow, stage, species, boat_id, stroke, site, number_conspecifics, shrimp_species, cum_sum_boat_trials_per_site, date),
     names_from = behaviour,
     values_from = mean_duration
   )
@@ -471,8 +469,29 @@ shrimp_df <- workingdf7 |>
 
 final_df <- inner_join(goby_df, shrimp_df, by = "burrow_stage") |> 
   mutate(shrimp_contact = ifelse(is.na(shrimp_contact), ifelse(goby_out == 1, 0, 1 - goby_out), shrimp_contact)) |> 
-  filter(site != "SITE O")
+  filter(site != "SITE O") |> 
+  mutate(parsed_date = mdy(paste(date, "2023")),
+         experiment_day = dense_rank(parsed_date))
+```
 
+#double check this
+```{r}
+final_df <- inner_join(goby_df, shrimp_df, by = "burrow_stage") %>% 
+  mutate(
+    shrimp_contact = ifelse(is.na(shrimp_contact),
+                            ifelse(goby_out == 1, 0, 1 - goby_out),
+                            shrimp_contact)) %>% 
+  filter(site != "SITE O") %>% 
+  mutate(
+    parsed_date    = mdy(paste(date, "2023")),
+    experiment_day = as.integer(parsed_date - min(parsed_date, na.rm = TRUE)) + 1
+  )
+
+head(final_df)
+```
+
+
+```{r}
 write_csv(final_df, "./1-data/final_df.csv")
 ```
 
@@ -510,11 +529,7 @@ First we check default priors
 All the beta coefficients are being given a flat prior which means it can take on a value from - infinity to + infinity. All the beta coefficients are on the logit scale so lets plot how changing the value of beta relates to different proportions    
 
 ```{r}
-get_prior(
-  zoib_formula,
-  data = final_df
-) %>% 
-  gt()
+get_prior(zoib_formula, data = final_df)
 ```
 
 #### Graphing logit~proportion
@@ -604,24 +619,21 @@ prior_formula <- bf(
   family = zero_one_inflated_beta()
 )
 
-#Now we run and save the model. **unhash** the code below if you haven't downloaded the saved model 'goby_out_model.rds' in the "3-models" folder. 
 
-# prior_model <- brm(
-#   prior_formula,
-#   data = final_df,
-#   family = zero_one_inflated_beta(),
-#   prior = priors,
-#   control = list(adapt_delta = 0.99,
-#                  max_treedepth = 12),
-#   chains = 4, iter = 1000, warmup = 100,
-#   cores = 4, threads = threading(2),
-#   backend = "cmdstanr",
-#   seed = 1,
-#   sample_prior = "only",
-#   file = "./3-models/prior_check"
-# )
-
-prior_model <-  readRDS(file = "./3-models/goby_out_model.rds")
+prior_model <- brm(
+  prior_formula,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 1000, warmup = 100,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1,
+  sample_prior = "only",
+  file = "./3-models/prior_check"
+)
 
 color_scheme_set("red")
 pp_check(prior_model, ndraws=20)
@@ -651,28 +663,20 @@ goby_out_formula_1 <- bf(
 
 Now we run and save the model.
 
-⏭️ **Skip this step** if you have downloaded the saved model 'goby_out_model.rds'. You will load the model in the next step.
-
 ```{r}
-# goby_out_model <- brm(
-#   goby_out_formula_1,
-#   data = final_df,
-#   family = zero_one_inflated_beta(),
-#   prior = priors,
-#   control = list(adapt_delta = 0.99,
-#                  max_treedepth = 12),
-#   chains = 4, iter = 4000, warmup = 1000,
-#   cores = 4, threads = threading(2),
-#   backend = "cmdstanr",
-#   seed = 1,
-#   file = "./3-models/goby_out_model"
-# )
-```
-
-Here we reload the saved model.   
-
-```{r}
-goby_out_model <-  readRDS(file = "./3-models/goby_out_model.rds")
+goby_out_model <- brm(
+  goby_out_formula_1,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1,
+  file = "./3-models/goby_out_model"
+)
 ```
 
 Looking at the basic model summary
@@ -1020,8 +1024,7 @@ goby_out_plot3 <- goby_out_fig_control + goby_out_fig_four + goby_out_fig_two +
 
 ```{r}
 goby_out_plot3
-ggsave("./2-figures/goby_out_plot3.jpeg", plot = goby_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
-ggsave("./2-figures/goby_out_plot3.pdf", plot = goby_out_plot3, units = "px", width = 2200, height = 1400)
+ggsave("./2-figures/goby_out_plot.png", plot = goby_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 ### Estimating the effects of covariates on the proportion of time gobies spent outside of the burrow
@@ -1171,30 +1174,21 @@ shrimp_out_formula <- bf(
 
 Now we run and save the model.
 
-⏭️ **Skip this step** if you have downloaded the saved model 'shrimp_out_model.rds'. You will load the model in the next step
-
 ```{r}
-# shrimp_out_model <- brm(
-#   shrimp_out_formula,
-#   data = final_df,
-#   family = zero_one_inflated_beta(),
-#   prior = priors,
-#   control = list(adapt_delta = 0.99,
-#                  max_treedepth = 12),
-#   chains = 4, iter = 4000, warmup = 1000,
-#   cores = 4, threads = threading(2),
-#   backend = "cmdstanr",
-#   seed = 1,
-#   file = "./3-models/shrimp_out_model"
-# )
+shrimp_out_model <- brm(
+  shrimp_out_formula,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1,
+  file = "./3-models/shrimp_out_model"
+)
 ```
-
-Here we reload the model.   
-
-```{r}
-shrimp_out_model <-  readRDS(file = "./3-models/shrimp_out_model.rds")
-```
-
 
 ```{r}
 summary(shrimp_out_model)
@@ -1520,8 +1514,7 @@ shrimp_out_plot3 <- shrimp_out_fig_control + shrimp_out_fig_four + shrimp_out_fi
   plot_layout(ncol = 3)
 
 shrimp_out_plot3
-ggsave("./2-figures/shrimp_out_plot3.jpeg", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
-ggsave("./2-figures/shrimp_out_plot3.pdf", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400)
+ggsave("./2-figures/shrimp_out_plot.png", plot = shrimp_out_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 ### Estimating the effects of covariates on the proportion of time shrimp spent outside of the burrow
@@ -1619,30 +1612,21 @@ shrimp_contact_plot
 
 Now we run and save the model.
 
-⏭️ **Skip this step** if you have downloaded the saved model 'shrimp_contact_model.rds'. You will load the model in the next step.
-
 ```{r}
-# shrimp_contact_model <- brm(
-#   bf(shrimp_contact ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
-#      phi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
-#      zoi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
-#      coi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow)
-#      ),
-#   data = final_df,
-#   prior = priors,
-#   family = zero_one_inflated_beta(),
-#   control = list(adapt_delta = 0.99, max_treedepth = 12),
-#   chains = 4, iter = 6000, warmup = 1000, seed = 1, backend = "cmdstanr", cores = 4, threads = threading(2),
-#   file = "./3-models/shrimp_contact_model"
-# )
+shrimp_contact_model <- brm(
+  bf(shrimp_contact ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+     phi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+     zoi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow),
+     coi ~ stroke*stage + shrimp_number + goby_number + shrimp_species + (1|site/burrow)
+     ),
+  data = final_df,
+  prior = priors,
+  family = zero_one_inflated_beta(),
+  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  chains = 4, iter = 6000, warmup = 1000, seed = 1, backend = "cmdstanr", cores = 4, threads = threading(2),
+  file = "./3-models/shrimp_contact_model"
+)
 ```
-
-Here we reload the model.   
-
-```{r}
-shrimp_contact_model <-  readRDS(file = "./3-models/shrimp_contact_model.rds")
-```
-
 
 ```{r}
 summary(shrimp_contact_model)
@@ -1773,66 +1757,6 @@ shrimp_contact_model_estimates_two <- shrimp_contact_model_estimates |>
   dplyr::filter(stroke == "2")|> 
   rename(.value = emmean)
 ```
-#### Plotting model estimates and raw data
-
-```{r}
-shrimp_contact_model_draws <- shrimp_contact_model |> 
-  emmeans(~ stroke*stage,
-          epred = TRUE,
-          rg.limit = 14000,
-          re_formula = NA) |> 
-  gather_emmeans_draws()
-
-shrimp_contact_model_draws <- shrimp_contact_model_draws |> 
-  rename(emmean = .value)
-
-shrimp_contact_raw_data <- final_df |> 
-  rename(emmean = shrimp_contact)
-
-shrimp_contact_raw_data$stage <- factor(shrimp_contact_raw_data$stage, levels = c("Pre", "During", "Post"))
-shrimp_contact_raw_data$stroke <- factor(shrimp_contact_raw_data$stroke, levels = c("control", "4", "2"))
-
-shrimp_contact_model_estimates$stage <- factor(shrimp_contact_model_estimates$stage, levels = c("Pre", "During", "Post"))
-shrimp_contact_model_estimates$stroke <- factor(shrimp_contact_model_estimates$stroke, levels = c("control", "4", "2"))
-
-shrimp_contact_model_draws$stage <- factor(shrimp_contact_model_draws$stage, levels = c("Pre", "During", "Post"))
-shrimp_contact_model_draws$stroke <- factor(shrimp_contact_model_draws$stroke, levels = c("control", "4", "2"))
-
-shrimp_contact_means <- shrimp_contact_raw_data |> 
-  group_by(stage, stroke) |> 
-  summarise(emmean = mean(emmean))
-
-
-shrimp_contact_fig_together <- ggplot(data = shrimp_contact_raw_data, aes(x = stage, y = emmean, color = stroke, fill = stroke)) +
-  geom_point(data = shrimp_contact_means, alpha = 1, position = position_dodgenudge(width = 0.8, x = -0.09), size = 9, shape = "_") +
-  geom_half_point(alpha = 0.3, position = position_dodgenudge(width = 0.8, x = -0.03), side = "l", range_scale = 0.5) +
-  geom_half_violin(data = shrimp_contact_model_draws, aes(x = stage, y = emmean, color = stroke, fill = stroke), alpha = 0.6, position = position_dodge(width = 0.8), side = "r", size = 0) +
-  geom_point(data = shrimp_contact_model_estimates, aes(x = stage, y = emmean, color = stroke), position = position_dodge(width = 0.8), size = 3) +
-  geom_errorbar(data = shrimp_contact_model_estimates, aes(x = stage, y = emmean, ymin = lower.HPD, ymax = upper.HPD, color = stroke), position = position_dodge(width = 0.8), width = 0, size = 1.25) +
-  scale_fill_manual(values = c("control" = "#76A34A", "4" = "#F29E00", "2" = "#E25A00"), name = "Noise exposure", guide = guide_legend(override.aes = list(size = 3))) +
-  scale_color_manual(values = c("control" = "#2A330E", "4" = "#805213", "2" = "#542709"), name = "Noise exposure", guide = guide_legend(override.aes = list(size = 3))) +
-  scale_x_discrete(labels = c("Pre", "During", "Post")) +
-  labs(title = "The effects of boat noise on goby-shrimp contact",
-       y = "Proportion of time the in contact",
-       x = "Experimental phase relative to noise exposure") +
-  theme_classic() +
-  theme(
-    axis.text.x = element_text(size = 10, margin = margin(t = 5)),  
-    axis.text.y = element_text(size = 10, margin = margin(r = 5)),  
-    axis.title.x = element_text(size = 13, margin = margin(t = 10)),
-    axis.title.y = element_text(size = 13, margin = margin(r = 10)),
-    legend.text = element_text(size = 10),
-    legend.title = element_text(size = 10),
-    legend.position = "right",
-    legend.justification = "top",
-    plot.title = element_text(hjust = 0.5, size = 16),  
-    plot.margin = margin(10, 10, 10, 10)
-  )
-
-shrimp_contact_fig_together
-ggsave("./2-figures/shrimp_contact_fig_together.png", plot = shrimp_contact_fig_together, units = "px", width = 2200, height = 1400, dpi = 300)
-```
-
 
 #### Plotting control estimates and raw data
 
@@ -1978,8 +1902,7 @@ shrimp_contact_plot3 <- shrimp_contact_fig_control + shrimp_contact_fig_four + s
 
 ```{r}
 shrimp_contact_plot3
-ggsave("./2-figures/shrimp_contact_plot3.jpeg", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
-ggsave("./2-figures/shrimp_contact_plot3.pdf", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400)
+ggsave("./2-figures/shrimp_contact_plot.png", plot = shrimp_contact_plot3, units = "px", width = 2200, height = 1400, dpi = 300)
 ```
 
 ### Estimating the effect of covariates on the proportion of time spent in contact
@@ -2056,7 +1979,7 @@ model_estimates <- model_estimates |>
          `Noise exposure` = stroke) |> 
   select(c(`Behavioural measure`, Phase, `Noise exposure`, `Estimated marginal mean`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-write_csv(model_estimates, "./1-data/model_estimates.csv")
+write_csv(model_estimates, "./2-figures/supplementary_tables/Table_S2.csv")
 ```
 
 ### Pairwise contrasts
@@ -2117,7 +2040,7 @@ goby_out_contrasts_table <- rbind(goby_out_contrasts, goby_out_goby_number1, gob
     `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
   )
 
-write_csv(goby_out_contrasts_table, "./1-data/goby_out_contrasts_table.csv")
+write_csv(goby_out_contrasts_table, "./2-figures/supplementary_tables/Table_S3.csv")
 
 #shrimp out
 shrimp_out_contrasts1 <- shrimp_out_contrasts |> 
@@ -2174,7 +2097,7 @@ shrimp_out_contrasts_table <- rbind(shrimp_out_contrasts1, shrimp_out_goby_numbe
     `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
   )
 
-write_csv(shrimp_out_contrasts_table, "./1-data/shrimp_out_contrasts_table.csv")
+write_csv(shrimp_out_contrasts_table, "./2-figures/supplementary_tables/Table_S4.csv")
 
 #shrimp contact
 shrimp_contact_contrasts1 <- shrimp_contact_contrasts |> 
@@ -2231,7 +2154,7 @@ shrimp_contact_contrasts_table <- rbind(shrimp_contact_contrasts1, shrimp_contac
     `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
   )
 
-write_csv(shrimp_contact_contrasts_table, "./1-data/shrimp_contact_contrasts_table.csv")
+write_csv(shrimp_contact_contrasts_table, "./2-figures/supplementary_tables/Table_S5.csv")
 ```
 
 
@@ -2249,236 +2172,89 @@ table_S1 <- final_df %>%
          Control = control)
 ```
 
+# Supplementary analysis 
 
-#Delete me I am one of Jack's rabbit holes 
+Although sites in the experimental design were spatially distinct, boats were tested multiple times at the same sites across the experiment. This raises the possibility that some burrows may have potentially experienced prior boat-noise exposure before their focal trial. Such cumulative exposure could influence the behavioural responses we observed. To assess this, we conducted a supplementary analysis.
+
+We quantified potential cumulative prior exposure at each site using the variable cum_sum_boat_trials_per_site, defined as the cumulative number of boat-noise treatments that had occurred at a site before the current trial. This variable was added as a predictor to the original models. We then compared models with and without the predictor using LOOIC, examined the estimated trend of each behavioural outcome in relation to cumulative exposure, and visually and quantitatively compared effect sizes. Finally, we assessed whether inclusion of the cumulative exposure variable altered the inference of the main effects.
 
 ```{r}
-priors <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
-            set_prior("logistic(0, 3)", class = "Intercept", dpar = "coi"),
-            set_prior("logistic(0, 3)", class = "Intercept", dpar = "zoi"),
-            set_prior("student_t(3, 0, 2.5)", class = "Intercept", dpar = "phi", lb = 0),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "phi", lb = 0),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "zoi", lb = 0),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "coi", lb = 0),
-            set_prior("normal(0, 3)", class = "b"),
-            set_prior("normal(0, 3)", class = "b", dpar = "phi"),
-            set_prior("normal(0, 3)", class = "b", dpar = "zoi"),
-            set_prior("normal(0, 3)", class = "b", dpar = "coi"))
+ggplot(data = final_df, aes(x = cum_sum_boat_trials_per_site, y = goby_out)) +
+  geom_smooth(method = "lm") +
+  geom_jitter()
 
+ggplot(data = final_df, aes(x = cum_sum_boat_trials_per_site, y = shrimp_out)) +
+  geom_smooth(method = "lm") +
+  geom_jitter()
 
-priors1 <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
-            set_prior("logistic(0, 3)", class = "Intercept", dpar = "zoi"),
-            set_prior("student_t(3, 0, 2.5)", class = "Intercept", dpar = "phi", lb = 0),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "phi", lb = 0),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", dpar = "zoi", lb = 0),
-            set_prior("normal(0, 3)", class = "b"),
-            set_prior("normal(0, 3)", class = "b", dpar = "phi"),
-            set_prior("normal(0, 3)", class = "b", dpar = "zoi"))
-
-priors2 <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
-            set_prior("normal(0, 3)", class = "b"))
-
-priors3 <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
-            set_prior("logistic(0, 3)", class = "Intercept", dpar = "coi"),
-            set_prior("logistic(0, 3)", class = "Intercept", dpar = "zoi"),
-            set_prior("student_t(3, 0, 2.5)", class = "Intercept", dpar = "phi", lb = 0),
-            set_prior("student_t(3, 0, 2.5)", class = "sd", lb = 0),
-            set_prior("normal(0, 3)", class = "b"),
-            set_prior("normal(0, 3)", class = "b", dpar = "phi"),
-            set_prior("normal(0, 3)", class = "b", dpar = "zoi"),
-            set_prior("normal(0, 3)", class = "b", dpar = "coi"))
-
-priors4 <- c(set_prior("student_t(3, 0, 2.5)", class = "Intercept"),
-            set_prior("normal(0, 3)", class = "b"))
+ggplot(data = final_df, aes(x = cum_sum_boat_trials_per_site, y = shrimp_contact)) +
+  geom_smooth(method = "lm") +
+  geom_jitter()
 ```
 
+## Goby out model 
+
+### Fit model
+
+Here we run the models with 'cum_sum_boat_trials_per_site' which is the cumulative sum of the number of boat trials at each site. This is to see if potential prior exposure to boat noise has a an effect on behavior
+
 ```{r}
-goby_out_formula_simple1 <- bf(
-  # mu (mean) part
-  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
-  # phi (precision) part
-  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
-  # alpha (zero-one-inflation) part
+cumulative_sum_goby_out_formula <- bf(
+  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + cum_sum_boat_trials_per_site + (1 | site/burrow),
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + cum_sum_boat_trials_per_site + (1 | site/burrow),
   zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
-  # The one-inflated part, conditional on the 0s
-  coi ~ 1,
-  
+  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
   family = zero_one_inflated_beta()
-)
+  )
 
-goby_out_model_simple1 <- brm(
-  goby_out_formula_simple1,
+cumulative_sum_goby_out_model <- brm(
+  cumulative_sum_goby_out_formula,
   data = final_df,
   family = zero_one_inflated_beta(),
-  prior = priors1,
+  prior = priors,
   control = list(adapt_delta = 0.99,
                  max_treedepth = 12),
   chains = 4, iter = 4000, warmup = 1000,
   cores = 4, threads = threading(2),
   backend = "cmdstanr",
-  seed = 1
+  seed = 1,
+  file = "./3-models/cumulative_sum_goby_out_model"
 )
 ```
 
+### Model Diagnostics
 
 ```{r}
-goby_out_formula_simple2 <- bf(
-  # mu (mean) part
-  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
-  # phi (precision) part
-  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
-  # alpha (zero-one-inflation) part
-  zoi ~ 1,
-  # The one-inflated part, conditional on the 0s
-  coi ~ 1,
-  
-  family = zero_one_inflated_beta()
-)
+summary(cumulative_sum_goby_out_model)
 
-goby_out_model_simple2 <- brm(
-  goby_out_formula_simple2,
-  data = final_df,
-  family = zero_one_inflated_beta(),
-  prior = priors2,
-  control = list(adapt_delta = 0.99,
-                 max_treedepth = 12),
-  chains = 4, iter = 4000, warmup = 1000,
-  cores = 4, threads = threading(2),
-  backend = "cmdstanr",
-  seed = 1
-)
+plot(cumulative_sum_goby_out_model, ask = F)
+
+pp_check(cumulative_sum_goby_out_model)
 ```
 
-```{r}
-goby_out_formula_simple3 <- bf(
-  # mu (mean) part
-  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
-  # phi (precision) part
-  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
-  # alpha (zero-one-inflation) part
-  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
-  # The one-inflated part, conditional on the 0s
-  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
-  
-  family = zero_one_inflated_beta()
-)
+### Model predictive performance
 
-goby_out_model_simple3 <- brm(
-  goby_out_formula_simple3,
-  data = final_df,
-  family = zero_one_inflated_beta(),
-  prior = priors3,
-  control = list(adapt_delta = 0.99,
-                 max_treedepth = 12),
-  chains = 4, iter = 4000, warmup = 1000,
-  cores = 4, threads = threading(2),
-  backend = "cmdstanr",
-  seed = 1
-)
+```{r}
+goby_out_model <- add_criterion(goby_out_model, criterion = "loo")
+cumulative_sum_goby_out_model <- add_criterion(cumulative_sum_goby_out_model, criterion = "loo")
+
+loo_compare(goby_out_model, cumulative_sum_goby_out_model)
 ```
 
-```{r}
-goby_out_formula_simple4 <- bf(
-  # mu (mean) part
-  goby_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
-  # phi (precision) part
-  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species,
-  # alpha (zero-one-inflation) part
-  zoi ~ 1,
-  # The one-inflated part, conditional on the 0s
-  coi ~ 1,
-  
-  family = zero_one_inflated_beta()
-)
+the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive performance
 
-goby_out_model_simple4 <- brm(
-  goby_out_formula_simple4,
-  data = final_df,
-  family = zero_one_inflated_beta(),
-  prior = priors4,
-  control = list(adapt_delta = 0.99,
-                 max_treedepth = 12),
-  chains = 4, iter = 4000, warmup = 1000,
-  cores = 4, threads = threading(2),
-  backend = "cmdstanr",
-  seed = 1
-)
+### Effects of previous boat trials
+
+```{r}
+emtrends(cumulative_sum_goby_out_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
 ```
 
+'cum_sum_boat_trials_per_site' does not have a meaningful effect on the proportion of time gobies spent out of the burrow 
+
+### Comparison of effect estimates
 
 ```{r}
-pp_check(goby_out_model, ndraws = 50) + ggtitle("Main Model - Density Plot")
-pp_check(goby_out_model_simple1, ndraws = 50) + ggtitle("Simple Model 1 - Density Plot")
-pp_check(goby_out_model_simple2, ndraws = 50) + ggtitle("Simple Model 2 - Density Plot")
-pp_check(goby_out_model_simple3, ndraws = 50) + ggtitle("Simple Model 3 - Density Plot")
-pp_check(goby_out_model_simple4, ndraws = 50) + ggtitle("Simple Model 4 - Density Plot")
-pp_check(goby_out_model, type = 'stat', stat = 'mean') + ggtitle("Main Model - Mean Check")
-pp_check(goby_out_model_simple1, type = 'stat', stat = 'mean') + ggtitle("Simple Model 1 - Mean Check")
-pp_check(goby_out_model_simple2, type = 'stat', stat = 'mean') + ggtitle("Simple Model 2 - Mean Check")
-pp_check(goby_out_model_simple3, type = 'stat', stat = 'mean') + ggtitle("Simple Model 3 - Mean Check")
-pp_check(goby_out_model_simple4, type = 'stat', stat = 'mean') + ggtitle("Simple Model 4 - Mean Check")
-```
-
-```{r}
-loo(goby_out_model)
-loo(goby_out_model_simple1)
-loo(goby_out_model_simple2)
-loo(goby_out_model_simple3)
-loo(goby_out_model_simple4)
-#I have nicely pasted outputs below in text
-```
-
-**Main model**
-Pareto k diagnostic values:
-                         Count Pct.    Min. ESS
-(-Inf, 0.7]   (good)     310   84.0%   530     
-   (0.7, 1]   (bad)       57   15.4%   <NA>    
-   (1, Inf)   (very bad)   2    0.5%   <NA>   
-
-
-**Simple model1**
-Pareto k diagnostic values:
-                         Count Pct.    Min. ESS
-(-Inf, 0.7]   (good)     341   92.4%   266     
-   (0.7, 1]   (bad)       26    7.0%   <NA>    
-   (1, Inf)   (very bad)   2    0.5%   <NA> 
-
-
-**Simple model2**
-Pareto k diagnostic values:
-                         Count Pct.    Min. ESS
-(-Inf, 0.7]   (good)     341   92.4%   266     
-   (0.7, 1]   (bad)       26    7.0%   <NA>    
-   (1, Inf)   (very bad)   2    0.5%   <NA>
-
-**Simple model3**
-Pareto k diagnostic values:
-                         Count Pct.    Min. ESS
-(-Inf, 0.7]   (good)     349   94.6%   307     
-   (0.7, 1]   (bad)       18    4.9%   <NA>    
-   (1, Inf)   (very bad)   2    0.5%   <NA> 
-
-
-**Simple model4**
-Pareto k diagnostic values:
-                         Count Pct.    Min. ESS
-(-Inf, 0.7]   (good)     367   99.5%   875     
-   (0.7, 1]   (bad)        2    0.5%   <NA>    
-   (1, Inf)   (very bad)   0    0.0%   <NA>
-
-
-#results from rabbit hole
-
-#################################################################################
-Change **var_model** to suit the model you want to compare to the complete model
-#################################################################################
-```{r}
-var_model = goby_out_model_simple2
-  
-var_model_contrasts <- var_model |>
+cumulative_sum_goby_out_model_contrast_effect <- cumulative_sum_goby_out_model |>
   emmeans(~ stroke*stage, 
           epred = TRUE,
           re_formla = NULL,
@@ -2486,74 +2262,231 @@ var_model_contrasts <- var_model |>
   contrast(method = "revpairwise") 
 
 # Extract the relevant contrast information
-var_model_contrasts <- as.data.frame(var_model_contrasts) |> 
+cumulative_sum_goby_out_results.table <- as.data.frame(cumulative_sum_goby_out_model_contrast_effect) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
-var_model_contrasts %>% 
-  gt()
+cumulative_sum_goby_out_results.table
+goby_out_results.table
 
-var_model_estimates <- var_model |> 
-  emmeans(~ stroke*stage,
-          epred = TRUE,
-          rg.limit = 14000,
-          re_formula = NA)
+cumulative_sum_goby_out_results.table$dataset <- "Cumulative sum model"
+goby_out_results.table$dataset <- "Non-cumulative model"
 
-var_model_estimates <- as.data.frame(var_model_estimates)
+goby_contrast_plot_data <- bind_rows(
+  cumulative_sum_goby_out_results.table,
+  goby_out_results.table
+)
 
-var_model_draws <- var_model |> 
-  emmeans(~ stroke*stage,
-          epred = TRUE,
-          rg.limit = 14000,
-          re_formula = NA) |> 
-  gather_emmeans_draws()
-
-var_model_draws <- var_model_draws |> 
-  rename(emmean = .value)
-
-goby_out_raw_data <- final_df |> 
-  rename(emmean = goby_out)
-
-goby_out_raw_data$stage <- factor(goby_out_raw_data$stage, levels = c("Pre", "During", "Post"))
-goby_out_raw_data$stroke <- factor(goby_out_raw_data$stroke, levels = c("control", "4", "2"))
-
-var_model_estimates$stage <- factor(var_model_estimates$stage, levels = c("Pre", "During", "Post"))
-var_model_estimates$stroke <- factor(var_model_estimates$stroke, levels = c("control", "4", "2"))
-
-var_model_draws$stage <- factor(var_model_draws$stage, levels = c("Pre", "During", "Post"))
-var_model_draws$stroke <- factor(var_model_draws$stroke, levels = c("control", "4", "2"))
-
-goby_out_means <- goby_out_raw_data |> 
-  group_by(stage, stroke) |> 
-  summarise(emmean = mean(emmean))
-
-
-var_fig_together <- ggplot(data = goby_out_raw_data, aes(x = stage, y = emmean, color = stroke, fill = stroke)) +
-  geom_point(data = goby_out_means, alpha = 1, position = position_dodgenudge(width = 0.8, x = -0.09), size = 9, shape = "_") +
-  geom_half_point(alpha = 0.3, position = position_dodgenudge(width = 0.8, x = -0.03), side = "l", range_scale = 0.5) +
-  geom_half_violin(data = var_model_draws, aes(x = stage, y = emmean, color = stroke, fill = stroke), alpha = 0.6, position = position_dodge(width = 0.8), side = "r", size = 0) +
-  geom_point(data = var_model_estimates, aes(x = stage, y = emmean, color = stroke), position = position_dodge(width = 0.8), size = 3) +
-  geom_errorbar(data = var_model_estimates, aes(x = stage, y = emmean, ymin = lower.HPD, ymax = upper.HPD, color = stroke), position = position_dodge(width = 0.8), width = 0, size = 1.25) +
-  scale_fill_manual(values = c("control" = "#76A34A", "4" = "#F29E00", "2" = "#E25A00"), name = "Noise exposure", guide = guide_legend(override.aes = list(size = 3))) +
-  scale_color_manual(values = c("control" = "#2A330E", "4" = "#805213", "2" = "#542709"), name = "Noise exposure", guide = guide_legend(override.aes = list(size = 3))) +
-  scale_x_discrete(labels = c("Pre", "During", "Post")) +
-  labs(title = "The effects of boat noise on goby burrow use",
-       y = "Proportion of time in out of the burrow",
-       x = "Experimental phase relative to noise exposure") +
+# Plot contrasts with HPD intervals
+ggplot(goby_contrast_plot_data,
+       aes(x = estimate, y = contrast, color = dataset)) +
+  geom_point(position = position_dodge(width = 0.6), size = 2) +
+  geom_errorbarh(aes(xmin = lower.HPD, xmax = upper.HPD),
+                 position = position_dodge(width = 0.6), height = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
   theme_classic() +
-  theme(
-    axis.text.x = element_text(size = 10, margin = margin(t = 5)),  
-    axis.text.y = element_text(size = 10, margin = margin(r = 5)),  
-    axis.title.x = element_text(size = 13, margin = margin(t = 10)),
-    axis.title.y = element_text(size = 13, margin = margin(r = 10)),
-    legend.text = element_text(size = 10),
-    legend.title = element_text(size = 10),
-    legend.position = "right",
-    legend.justification = "top",
-    plot.title = element_text(hjust = 0.5, size = 16),  
-    plot.margin = margin(10, 10, 10, 10)
+  labs(
+    x = "Posterior median (with 95% HPD interval)",
+    y = "Contrasts",
+    title = "Comparison of contrasts between cumulative-sum and original models"
+  )
+```
+
+## Shrimp out model 
+
+### Fit model
+
+Here we run the models with 'cum_sum_boat_trials_per_site' which is the cumulative sum of the number of boat trials at each site. This is to see if potential prior exposure to boat noise has a an effect on behavior
+
+```{r}
+cumulative_sum_shrimp_out_formula <- bf(
+  shrimp_out ~ stroke*stage + goby_number + shrimp_number + shrimp_species + cum_sum_boat_trials_per_site + (1 | site/burrow),
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + cum_sum_boat_trials_per_site + (1 | site/burrow),
+  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  family = zero_one_inflated_beta()
   )
 
-var_fig_together + ggtitle("Simple model")
-goby_out_fig_together + ggtitle("Original model")
+cumulative_sum_shrimp_out_model <- brm(
+  cumulative_sum_shrimp_out_formula,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1,
+  file = "./3-models/cumulative_sum_shrimp_out_model"
+)
+```
+
+### Model Diagnostics
+
+```{r}
+summary(cumulative_sum_shrimp_out_model)
+
+plot(cumulative_sum_shrimp_out_model, ask = F)
+
+pp_check(cumulative_sum_shrimp_out_model)
+```
+
+### Model predictive performance
+
+```{r}
+shrimp_out_model <- add_criterion(shrimp_out_model, criterion = "loo")
+cumulative_sum_shrimp_out_model <- add_criterion(cumulative_sum_shrimp_out_model, criterion = "loo")
+
+loo_compare(shrimp_out_model, cumulative_sum_shrimp_out_model)
+```
+
+the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive performance
+
+### Effects of previous boat trials
+
+```{r}
+emtrends(cumulative_sum_shrimp_out_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
+```
+
+'cum_sum_boat_trials_per_site' does not have a meaningful effect on the proportion of time shrimp spent out of the burrow 
+
+### Comparison of effect estimates
+
+```{r}
+cumulative_sum_shrimp_out_model_contrast_effect <- cumulative_sum_shrimp_out_model |>
+  emmeans(~ stroke*stage, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+# Extract the relevant contrast information
+cumulative_sum_shrimp_out_results.table <- as.data.frame(cumulative_sum_shrimp_out_model_contrast_effect) |> 
+  dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
+
+cumulative_sum_shrimp_out_results.table
+shrimp_out_contrasts
+
+cumulative_sum_shrimp_out_results.table$dataset <- "Cumulative sum model"
+shrimp_out_contrasts$dataset <- "Non-cumulative model"
+
+shrimp_contrast_plot_data <- bind_rows(
+  cumulative_sum_shrimp_out_results.table,
+  shrimp_out_contrasts
+)
+
+# Plot contrasts with HPD intervals
+ggplot(shrimp_contrast_plot_data,
+       aes(x = estimate, y = contrast, color = dataset)) +
+  geom_point(position = position_dodge(width = 0.6), size = 2) +
+  geom_errorbarh(aes(xmin = lower.HPD, xmax = upper.HPD),
+                 position = position_dodge(width = 0.6), height = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  theme_classic() +
+  labs(
+    x = "Posterior median (with 95% HPD interval)",
+    y = "Contrasts",
+    title = "Comparison of contrasts between cumulative-sum and original models"
+  )
+```
+
+## Shrimp contact model 
+
+### Fit model
+
+Here we run the models with 'cum_sum_boat_trials_per_site' which is the cumulative sum of the number of boat trials at each site. This is to see if potential prior exposure to boat noise has a an effect on behavior
+
+```{r}
+cumulative_sum_shrimp_contact_formula <- bf(
+  shrimp_contact ~ stroke*stage + goby_number + shrimp_number + shrimp_species + cum_sum_boat_trials_per_site + (1 | site/burrow),
+  phi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + cum_sum_boat_trials_per_site + (1 | site/burrow),
+  zoi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  coi ~ stroke*stage + goby_number + shrimp_number + shrimp_species + (1 | site/burrow),
+  family = zero_one_inflated_beta()
+  )
+
+cumulative_sum_shrimp_contact_model <- brm(
+  cumulative_sum_shrimp_contact_formula,
+  data = final_df,
+  family = zero_one_inflated_beta(),
+  prior = priors,
+  control = list(adapt_delta = 0.99,
+                 max_treedepth = 12),
+  chains = 4, iter = 4000, warmup = 1000,
+  cores = 4, threads = threading(2),
+  backend = "cmdstanr",
+  seed = 1,
+  file = "./3-models/cumulative_sum_shrimp_contact_model"
+)
+```
+
+### Model Diagnostics
+
+```{r}
+summary(cumulative_sum_shrimp_contact_model)
+
+plot(cumulative_sum_shrimp_contact_model, ask = F)
+
+pp_check(cumulative_sum_shrimp_contact_model)
+```
+
+### Model predictive performance
+
+```{r}
+shrimp_contact_model <- add_criterion(shrimp_contact_model, criterion = "loo")
+cumulative_sum_shrimp_contact_model <- add_criterion(cumulative_sum_shrimp_contact_model, criterion = "loo")
+
+loo_compare(shrimp_contact_model, cumulative_sum_shrimp_contact_model)
+```
+
+the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive performance
+
+
+### Effects of previous boat trials
+
+```{r}
+emtrends(cumulative_sum_shrimp_contact_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
+```
+
+'cum_sum_boat_trials_per_site' does not have a meaningful effect on the proportion of time shrimp spent in contact with a goby
+
+### Comparison of effect estimates
+
+```{r}
+cumulative_sum_shrimp_contact_model_contrast_effect <- cumulative_sum_shrimp_contact_model |>
+  emmeans(~ stroke*stage, 
+          epred = TRUE,
+          re_formla = NULL,
+          rg.limit =14000) |> 
+  contrast(method = "revpairwise") 
+
+# Extract the relevant contrast information
+cumulative_sum_shrimp_contact_results.table <- as.data.frame(cumulative_sum_shrimp_contact_model_contrast_effect) |> 
+  dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
+
+cumulative_sum_shrimp_contact_results.table
+shrimp_contact_contrasts
+
+cumulative_sum_shrimp_contact_results.table$dataset <- "Cumulative sum model"
+shrimp_contact_contrasts$dataset <- "Non-cumulative model"
+
+shrimp_contact_contrast_plot_data <- bind_rows(
+  cumulative_sum_shrimp_contact_results.table,
+  shrimp_contact_contrasts
+)
+
+# Plot contrasts with HPD intervals
+ggplot(shrimp_contact_contrast_plot_data,
+       aes(x = estimate, y = contrast, color = dataset)) +
+  geom_point(position = position_dodge(width = 0.6), size = 2) +
+  geom_errorbarh(aes(xmin = lower.HPD, xmax = upper.HPD),
+                 position = position_dodge(width = 0.6), height = 0.2) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  theme_classic() +
+  labs(
+    x = "Posterior median (with 95% HPD interval)",
+    y = "Contrasts",
+    title = "Comparison of contrasts between cumulative-sum and original models"
+  )
 ```
 
