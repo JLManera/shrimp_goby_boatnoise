@@ -550,10 +550,8 @@ tibble(x = seq(-8, 8, by = 0.1)) |>
 This visualises our priors, to aid in specification.      
 
 ```{r}
-# Generate data points
-x <- seq(-20, 20, length.out = 1000)  # Adjusted range for better visualization
+x <- seq(-20, 20, length.out = 1000)
 
-# Define parameters for the distributions
 loc_logistic <- 0
 scale_logistic <- 3
 
@@ -564,17 +562,15 @@ scale_student_t <- 2.5
 loc_normal <- 0
 scale_normal <- 3
 
-# Calculate PDFs
 pdf_logistic <- dlogis(x, location = loc_logistic, scale = scale_logistic)
 pdf_student_t <- dt(x, df = df_student_t)
 pdf_normal <- dnorm(x, mean = loc_normal, sd = scale_normal)
 
-# Plot the PDFs
 df <- data.frame(x = x, Logistic = pdf_logistic, Student_t = pdf_student_t, Normal = pdf_normal)
 ggplot(df, aes(x)) +
-  geom_line(aes(y = Logistic, color = "Logistic(0, 3)")) + # Default priors of Logistic(0,1) have been broadened as these priors seemed too restrictive
+  geom_line(aes(y = Logistic, color = "Logistic(0, 3)")) + 
   geom_line(aes(y = Student_t, color = "Student_t(3, 0, 2.5)")) +
-  geom_line(aes(y = Normal, color = "Normal(0, 3)")) + #For the beta coefficient prior, we will set it to be normally distributed around 0 with an sd of 5, here is the plotted prior distribution 
+  geom_line(aes(y = Normal, color = "Normal(0, 3)")) +
   labs(title = "Probability Density Functions",
        x = "x",
        y = "Probability Density") +
@@ -692,15 +688,11 @@ summary(goby_out_model)
 Here we check the model convergence using R-hat   
 
 ```{r}
-#convergence diagnostics (R-hat)
 extract_rhats <- function(model) {
   model_summary <- summary(model)
-  #extract R-hat values for fixed effects
   fixed_rhats <- model_summary$fixed[, "Rhat", drop = FALSE]
-  #check for random effects and extract R-hat values if present
   if (!is.null(model_summary$random)) {
     random_rhats <- do.call(rbind, lapply(model_summary$random, function(x) x[, "Rhat", drop = FALSE]))
-    #combine fixed and random effects R-hat values
     rhats <- rbind(fixed_rhats, random_rhats)
   } else {
     rhats <- fixed_rhats
@@ -746,7 +738,6 @@ goby_out_contrast_effect <- goby_out_model |>
           rg.limit =14000) |> 
   contrast(method = "revpairwise") 
 
-# Extract the relevant contrast information
 goby_out_results.table <- as.data.frame(goby_out_contrast_effect) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
@@ -907,7 +898,6 @@ goby_control_means <- goby_control_raw_data |>
 
 goby_control_raw_data$stage <- factor(goby_control_raw_data$stage, levels = c("Pre", "During", "Post"))
 
-#assigning a value for the baseline mean
 goby_out_model_estimates_control_intercept <- goby_out_model_estimates_control |>
   dplyr::filter(stage == "Pre") |>
   pull(.value)
@@ -1206,7 +1196,6 @@ extract_rhats(shrimp_out_model)
 #### Model fit
 
 ```{r}
-#posterior predictive checks
 pp_check(shrimp_out_model)
 
 pp_check(shrimp_out_model, type='stat', stat='mean')
@@ -1240,7 +1229,6 @@ shrimp_out_contrasts <- shrimp_out_model |>
           rg.limit =14000) |> 
   contrast(method = "revpairwise") 
 
-# Extract the relevant contrast information
 shrimp_out_contrasts <- as.data.frame(shrimp_out_contrasts) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
@@ -1399,7 +1387,6 @@ shrimp_control_means <- shrimp_control_raw_data |>
 
 shrimp_control_raw_data$stage <- factor(shrimp_control_raw_data$stage, levels = c("Pre", "During", "Post"))
 
-#assigning a value for the baseline mean
 shrimp_out_model_estimates_control_intercept <- shrimp_out_model_estimates_control |>
   dplyr::filter(stage == "Pre") |>
   pull(.value)
@@ -1605,7 +1592,6 @@ shrimp_contact_plot <- shrimp_contact_df |>
                  boundary = 0, color = "white") +
   geom_vline(xintercept = 0)
 shrimp_contact_plot
-# Distribution is a zero-one inflated beta distribution, because the value for shrimp_contact is bounded by 0-1 as it is a proportion of the total time and there is values of 0 and 1.
 ```
 
 ### Running the model
@@ -1643,7 +1629,6 @@ extract_rhats(shrimp_contact_model)
 #### Model fit
 
 ```{r}
-#posterior predictive checks
 pp_check(shrimp_contact_model)
 
 pp_check(shrimp_contact_model, type='stat', stat='mean')
@@ -1675,15 +1660,10 @@ shrimp_contact_contrasts <- shrimp_contact_model |>
   contrast(method = "revpairwise") 
 
 overall_mean <- shrimp_contact_model |>
-  emmeans(~ 1,             # 1 means "no factors," i.e. the grand mean
-          epred = TRUE,    # estimate on the response scale
-          re_formla = NULL,
-          rg.limit = 14000)
+  emmeans(~ 1, epred = TRUE, re_formla = NULL, rg.limit = 14000)
 
-# View the summary with posterior mean and credible intervals
 overall_mean
 
-# Extract the relevant contrast information
 shrimp_contact_contrasts <- as.data.frame(shrimp_contact_contrasts) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
@@ -1744,7 +1724,6 @@ shrimp_contact_model_estimates <- as.data.frame(shrimp_contact_model_estimates)
 
 shrimp_contact_model_estimates
 
-#Storing the model estimate means for each group to plot later on
 shrimp_contact_model_estimates_control <- shrimp_contact_model_estimates |> 
   dplyr::filter(stroke == "control") |> 
   rename(.value = emmean)
@@ -1787,7 +1766,6 @@ goby_control_means <- goby_control_raw_data |>
 
 goby_control_raw_data$stage <- factor(goby_control_raw_data$stage, levels = c("Pre", "During", "Post"))
 
-#assigning a value for the baseline mean
 shrimp_contact_model_estimates_control_intercept <- shrimp_contact_model_estimates_control |>
   dplyr::filter(stage == "Pre") |>
   pull(.value)
@@ -1985,7 +1963,6 @@ write_csv(model_estimates, "./2-figures/supplementary_tables/Table_S4.csv")
 ### Pairwise contrasts
 
 ```{r}
-#goby out
 goby_out_contrasts <- goby_out_results.table |> 
   mutate(`Predictor variable` = "Treatment and phase interaction",
          contrast = str_replace_all(contrast, "\\b2\\b", "2-Stroke"),
@@ -2042,7 +2019,6 @@ goby_out_contrasts_table <- rbind(goby_out_contrasts, goby_out_goby_number1, gob
 
 write_csv(goby_out_contrasts_table, "./2-figures/supplementary_tables/Table_S5.csv")
 
-#shrimp out
 shrimp_out_contrasts1 <- shrimp_out_contrasts |> 
   mutate(`Predictor variable` = "Treatment and phase interaction",
          contrast = str_replace_all(contrast, "\\b2\\b", "2-Stroke"),
@@ -2099,7 +2075,6 @@ shrimp_out_contrasts_table <- rbind(shrimp_out_contrasts1, shrimp_out_goby_numbe
 
 write_csv(shrimp_out_contrasts_table, "./2-figures/supplementary_tables/Table_S6.csv")
 
-#shrimp contact
 shrimp_contact_contrasts1 <- shrimp_contact_contrasts |> 
   mutate(`Predictor variable` = "Treatment and phase interaction",
          contrast = str_replace_all(contrast, "\\b2\\b", "2-Stroke"),
@@ -2266,7 +2241,6 @@ cumulative_sum_goby_out_model_contrast_effect <- cumulative_sum_goby_out_model |
           rg.limit =14000) |> 
   contrast(method = "revpairwise") 
 
-# Extract the relevant contrast information
 cumulative_sum_goby_out_results.table <- as.data.frame(cumulative_sum_goby_out_model_contrast_effect) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
@@ -2281,7 +2255,6 @@ goby_contrast_plot_data <- bind_rows(
   goby_out_results.table
 )
 
-# Plot contrasts with HPD intervals
 ggplot(goby_contrast_plot_data,
        aes(x = estimate, y = contrast, color = dataset)) +
   geom_point(position = position_dodge(width = 0.6), size = 2) +
@@ -2367,7 +2340,6 @@ cumulative_sum_shrimp_out_model_contrast_effect <- cumulative_sum_shrimp_out_mod
           rg.limit =14000) |> 
   contrast(method = "revpairwise") 
 
-# Extract the relevant contrast information
 cumulative_sum_shrimp_out_results.table <- as.data.frame(cumulative_sum_shrimp_out_model_contrast_effect) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
@@ -2382,7 +2354,6 @@ shrimp_contrast_plot_data <- bind_rows(
   shrimp_out_contrasts
 )
 
-# Plot contrasts with HPD intervals
 ggplot(shrimp_contrast_plot_data,
        aes(x = estimate, y = contrast, color = dataset)) +
   geom_point(position = position_dodge(width = 0.6), size = 2) +
@@ -2469,7 +2440,6 @@ cumulative_sum_shrimp_contact_model_contrast_effect <- cumulative_sum_shrimp_con
           rg.limit =14000) |> 
   contrast(method = "revpairwise") 
 
-# Extract the relevant contrast information
 cumulative_sum_shrimp_contact_results.table <- as.data.frame(cumulative_sum_shrimp_contact_model_contrast_effect) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
@@ -2484,7 +2454,6 @@ shrimp_contact_contrast_plot_data <- bind_rows(
   shrimp_contact_contrasts
 )
 
-# Plot contrasts with HPD intervals
 ggplot(shrimp_contact_contrast_plot_data,
        aes(x = estimate, y = contrast, color = dataset)) +
   geom_point(position = position_dodge(width = 0.6), size = 2) +
