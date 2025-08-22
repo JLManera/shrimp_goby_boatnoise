@@ -476,12 +476,12 @@ final_df <- inner_join(goby_df, shrimp_df, by = "burrow_stage") |>
 
 #double check this
 ```{r}
-final_df <- inner_join(goby_df, shrimp_df, by = "burrow_stage") %>% 
+final_df <- inner_join(goby_df, shrimp_df, by = "burrow_stage") |> 
   mutate(
     shrimp_contact = ifelse(is.na(shrimp_contact),
                             ifelse(goby_out == 1, 0, 1 - goby_out),
-                            shrimp_contact)) %>% 
-  filter(site != "SITE O") %>% 
+                            shrimp_contact)) |> 
+  filter(site != "SITE O") |> 
   mutate(
     parsed_date    = mdy(paste(date, "2023")),
     experiment_day = as.integer(parsed_date - min(parsed_date, na.rm = TRUE)) + 1
@@ -750,7 +750,7 @@ goby_out_contrast_effect <- goby_out_model |>
 goby_out_results.table <- as.data.frame(goby_out_contrast_effect) |> 
   dplyr::filter(contrast %in% c("control Pre - 2 Pre", "control Pre - 4 Pre","4 Pre - 2 Pre", "control Pre - control During", "control Pre - control Post", "4 Pre - 4 During", "4 Pre - 4 Post", "2 Pre - 2 During", "2 Pre - 2 Post"))
 
-goby_out_results.table %>% 
+goby_out_results.table |> 
   gt()
 ```
 
@@ -908,8 +908,8 @@ goby_control_means <- goby_control_raw_data |>
 goby_control_raw_data$stage <- factor(goby_control_raw_data$stage, levels = c("Pre", "During", "Post"))
 
 #assigning a value for the baseline mean
-goby_out_model_estimates_control_intercept <- goby_out_model_estimates_control %>%
-  dplyr::filter(stage == "Pre") %>%
+goby_out_model_estimates_control_intercept <- goby_out_model_estimates_control |>
+  dplyr::filter(stage == "Pre") |>
   pull(.value)
 
 goby_out_fig_control <- ggplot(goby_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
@@ -1400,8 +1400,8 @@ shrimp_control_means <- shrimp_control_raw_data |>
 shrimp_control_raw_data$stage <- factor(shrimp_control_raw_data$stage, levels = c("Pre", "During", "Post"))
 
 #assigning a value for the baseline mean
-shrimp_out_model_estimates_control_intercept <- shrimp_out_model_estimates_control %>%
-  dplyr::filter(stage == "Pre") %>%
+shrimp_out_model_estimates_control_intercept <- shrimp_out_model_estimates_control |>
+  dplyr::filter(stage == "Pre") |>
   pull(.value)
 
 shrimp_out_fig_control <- ggplot(shrimp_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
@@ -1788,8 +1788,8 @@ goby_control_means <- goby_control_raw_data |>
 goby_control_raw_data$stage <- factor(goby_control_raw_data$stage, levels = c("Pre", "During", "Post"))
 
 #assigning a value for the baseline mean
-shrimp_contact_model_estimates_control_intercept <- shrimp_contact_model_estimates_control %>%
-  dplyr::filter(stage == "Pre") %>%
+shrimp_contact_model_estimates_control_intercept <- shrimp_contact_model_estimates_control |>
+  dplyr::filter(stage == "Pre") |>
   pull(.value)
 
 shrimp_contact_fig_control <- ggplot(goby_control_raw_data, aes(y = .value, x = stage, fill = stage, color = stage)) +
@@ -1979,7 +1979,7 @@ model_estimates <- model_estimates |>
          `Noise exposure` = stroke) |> 
   select(c(`Behavioural measure`, Phase, `Noise exposure`, `Estimated marginal mean`, `Lower 95% CrI`, `Upper 95% CrI`))
 
-write_csv(model_estimates, "./2-figures/supplementary_tables/Table_S2.csv")
+write_csv(model_estimates, "./2-figures/supplementary_tables/Table_S4.csv")
 ```
 
 ### Pairwise contrasts
@@ -2040,7 +2040,7 @@ goby_out_contrasts_table <- rbind(goby_out_contrasts, goby_out_goby_number1, gob
     `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
   )
 
-write_csv(goby_out_contrasts_table, "./2-figures/supplementary_tables/Table_S3.csv")
+write_csv(goby_out_contrasts_table, "./2-figures/supplementary_tables/Table_S5.csv")
 
 #shrimp out
 shrimp_out_contrasts1 <- shrimp_out_contrasts |> 
@@ -2097,7 +2097,7 @@ shrimp_out_contrasts_table <- rbind(shrimp_out_contrasts1, shrimp_out_goby_numbe
     `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
   )
 
-write_csv(shrimp_out_contrasts_table, "./2-figures/supplementary_tables/Table_S4.csv")
+write_csv(shrimp_out_contrasts_table, "./2-figures/supplementary_tables/Table_S6.csv")
 
 #shrimp contact
 shrimp_contact_contrasts1 <- shrimp_contact_contrasts |> 
@@ -2154,22 +2154,25 @@ shrimp_contact_contrasts_table <- rbind(shrimp_contact_contrasts1, shrimp_contac
     `Upper 95% CrI` = round(`Upper 95% CrI`, 3)
   )
 
-write_csv(shrimp_contact_contrasts_table, "./2-figures/supplementary_tables/Table_S5.csv")
+write_csv(shrimp_contact_contrasts_table, "./2-figures/supplementary_tables/Table_S7.csv")
 ```
 
 
 ```{r}
-table_S1 <- final_df %>%
+table_S1 <- final_df |>
   select(c("burrow", "stroke", "site")) |> 
   unique() |> 
-  group_by(site, stroke) %>%
-  summarise(n = n(), .groups = "drop") %>%
-  pivot_wider(names_from = stroke, values_from = n, values_fill = 0) %>%
-  mutate(Total = `control` + `4` + `2`) %>%
-  arrange(site) %>%
+  group_by(site, stroke) |>
+  summarise(n = n(), .groups = "drop") |>
+  pivot_wider(names_from = stroke, values_from = n, values_fill = 0) |>
+  mutate(Total = `control` + `4` + `2`) |>
+  arrange(site) |>
   rename(`4-stroke` = `4`, 
          `2-stroke` = `2`, 
          Control = control)
+table_S1
+
+write_csv(table_S1, "./2-figures/supplementary_tables/Table_S1.csv")
 ```
 
 # Supplementary analysis 
@@ -2238,7 +2241,8 @@ pp_check(cumulative_sum_goby_out_model)
 goby_out_model <- add_criterion(goby_out_model, criterion = "loo")
 cumulative_sum_goby_out_model <- add_criterion(cumulative_sum_goby_out_model, criterion = "loo")
 
-loo_compare(goby_out_model, cumulative_sum_goby_out_model)
+goby_out_cumulative_loo_compare <- as.data.frame(loo_compare(goby_out_model, cumulative_sum_goby_out_model))
+goby_out_cumulative_loo_compare
 ```
 
 the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive performance
@@ -2246,7 +2250,8 @@ the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive
 ### Effects of previous boat trials
 
 ```{r}
-emtrends(cumulative_sum_goby_out_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
+cum_sum_boat_trials_per_site_effect_goby_out <- emtrends(cumulative_sum_goby_out_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
+cum_sum_boat_trials_per_site_effect_goby_out
 ```
 
 'cum_sum_boat_trials_per_site' does not have a meaningful effect on the proportion of time gobies spent out of the burrow 
@@ -2337,7 +2342,8 @@ pp_check(cumulative_sum_shrimp_out_model)
 shrimp_out_model <- add_criterion(shrimp_out_model, criterion = "loo")
 cumulative_sum_shrimp_out_model <- add_criterion(cumulative_sum_shrimp_out_model, criterion = "loo")
 
-loo_compare(shrimp_out_model, cumulative_sum_shrimp_out_model)
+shrimp_out_cumulative_loo_compare <- as.data.frame(loo_compare(shrimp_out_model, cumulative_sum_shrimp_out_model))
+shrimp_out_cumulative_loo_compare
 ```
 
 the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive performance
@@ -2345,7 +2351,8 @@ the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive
 ### Effects of previous boat trials
 
 ```{r}
-emtrends(cumulative_sum_shrimp_out_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
+cum_sum_boat_trials_per_site_effect_shrimp_out <- emtrends(cumulative_sum_shrimp_out_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
+cum_sum_boat_trials_per_site_effect_shrimp_out
 ```
 
 'cum_sum_boat_trials_per_site' does not have a meaningful effect on the proportion of time shrimp spent out of the burrow 
@@ -2436,7 +2443,8 @@ pp_check(cumulative_sum_shrimp_contact_model)
 shrimp_contact_model <- add_criterion(shrimp_contact_model, criterion = "loo")
 cumulative_sum_shrimp_contact_model <- add_criterion(cumulative_sum_shrimp_contact_model, criterion = "loo")
 
-loo_compare(shrimp_contact_model, cumulative_sum_shrimp_contact_model)
+shrimp_contact_cumulative_loo_compare <- as.data.frame(loo_compare(shrimp_contact_model, cumulative_sum_shrimp_contact_model))
+shrimp_contact_cumulative_loo_compare
 ```
 
 the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive performance
@@ -2445,7 +2453,8 @@ the addition of 'cum_sum_boat_trials_per_site' does not improve model predictive
 ### Effects of previous boat trials
 
 ```{r}
-emtrends(cumulative_sum_shrimp_contact_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
+cum_sum_boat_trials_per_site_effect_shrimp_contact <- emtrends(cumulative_sum_shrimp_contact_model, ~ 1, var = "cum_sum_boat_trials_per_site", epred = TRUE, re_formula = NA)
+cum_sum_boat_trials_per_site_effect_shrimp_contact
 ```
 
 'cum_sum_boat_trials_per_site' does not have a meaningful effect on the proportion of time shrimp spent in contact with a goby
@@ -2490,3 +2499,59 @@ ggplot(shrimp_contact_contrast_plot_data,
   )
 ```
 
+## Additional supplementary tables
+
+```{r}
+short_label <- function(x) dplyr::recode(
+  x,
+  "Proportion of time gobies spent outside of the burrow"  = "Goby: time outside burrow",
+  "Proportion of time shrimp spent outside of the burrow"  = "Shrimp: time outside burrow",
+  "Proportion of time shrimp spent in contact with a goby" = "Shrimp–goby contact",
+  .default = x
+)
+
+cumulative_loo_compare_clean <-
+  bind_rows(
+    goby_out_cumulative_loo_compare  |> rownames_to_column("Model") |>
+      mutate(Behavioural_measure = "Proportion of time gobies spent outside of the burrow"),
+    shrimp_out_cumulative_loo_compare |> rownames_to_column("Model") |>
+      mutate(Behavioural_measure = "Proportion of time shrimp spent outside of the burrow"),
+    shrimp_contact_cumulative_loo_compare |> rownames_to_column("Model") |>
+      mutate(Behavioural_measure = "Proportion of time shrimp spent in contact with a goby")
+  ) |>
+  mutate(
+    Behavioural_measure = short_label(Behavioural_measure),
+    Model = if_else(str_detect(Model, "^cumulative_sum"), "Cumulative-sum model", "Non-cumulative model")
+  ) |>
+  select(
+    Behavioural_measure, Model,
+    elpd_loo, se_elpd_loo, looic, elpd_diff, se_diff
+  ) |>
+  rename(
+    `Behavioural measure` = Behavioural_measure,
+    `SE (elpd_loo)` = se_elpd_loo,
+    `SE (elpd_diff)` = se_diff
+  )
+
+write_csv(cumulative_loo_compare_clean, "./2-figures/supplementary_tables/Table_S2.csv")
+
+cumulative_effects_clean <-
+  bind_rows(
+    as.data.frame(cum_sum_boat_trials_per_site_effect_goby_out) |>
+      mutate(Behavioural_measure = "Proportion of time gobies spent outside of the burrow"),
+    as.data.frame(cum_sum_boat_trials_per_site_effect_shrimp_out) |>
+      mutate(Behavioural_measure = "Proportion of time shrimp spent outside of the burrow"),
+    as.data.frame(cum_sum_boat_trials_per_site_effect_shrimp_contact) |>
+      mutate(Behavioural_measure = "Proportion of time shrimp spent in contact with a goby")
+  ) |>
+  mutate(Behavioural_measure = short_label(Behavioural_measure)) |>
+  select(any_of(c("Behavioural_measure", "cum_sum_boat_trials_per_site.trend", "lower.HPD", "upper.HPD"))) |>
+  rename(
+    `Behavioural measure` = Behavioural_measure,
+    `Trend per additional prior boat trial` = cum_sum_boat_trials_per_site.trend,
+    `Lower 95% CrI` = lower.HPD,
+    `Upper 95% CrI` = upper.HPD
+  )
+cumulative_effects_clean
+write_csv(cumulative_effects_clean, "./2-figures/supplementary_tables/Table_S3.csv")
+```
