@@ -1,4 +1,5 @@
-# Boat Noise Alters Behaviour in a Fish-Shrimp Mutualism  
+# Boat noise alters individual behaviours but not communication between partners in a fish-shrimp mutualism.
+
 
 ## Overview  
 
