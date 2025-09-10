@@ -65,7 +65,7 @@ Columns:
   - **CHASE CONSPECIFIC** – Goby chases another goby that is not sharing the same burrow.
   - **CHASE UNKNOWN** – Goby chases an unknown animal (out of frame).
 - **count** – Number of times the behaviour was observed.
-- **total_duration_s** – Cumulative duration of the behaviour (in seconds).
+- **total_duration_s** – Cumulative duration of the behaviour (sec).
 - **video_id** – Unique code name for the video, assigned to maintain blinding.
 
 ### 2. final_df.csv
@@ -81,13 +81,13 @@ Columns:
 - **site** – Sampling site within the Lizard Island lagoon.
 - **goby_number** – Number of gobies observed at the burrow.
 - **shrimp_species** – The species of snapping shrimp observed.
-- **goby_total** – The total time recorded for all goby behvaiours in the trial averaged over the number of gobies present.
-- **goby_out** – The amount of time gobies spent outside the burrow (averaged across the number of gobies).
+- **goby_total** – The total time (sec) recorded for all goby behvaiours in the trial averaged over the number of gobies present.
+- **goby_out** – The amount of time (sec) gobies spent outside the burrow (averaged across the number of gobies).
 - **burrow_stage** – Developmental stage or condition of the burrow.
-- **shrimp_out** – The amount of time shrimp spent outside the burrow (averaged across the number of shrimp).
-- **shrimp_total** – The total time recorded for all shrimp behvaiours in the trial averaged over the number of shrmip present.
+- **shrimp_out** – The amount of time (sec) shrimp spent outside the burrow (averaged across the number of shrimp).
+- **shrimp_total** – The total time (sec) recorded for all shrimp behvaiours in the trial averaged over the number of shrmip present.
 - **shrimp_number** – Number of shrimp present in the burrow.
-- **shrimp_contact** – The total time shrimp spent in within one body length of a goby, the proxy for contact.
+- **shrimp_contact** – The total time (sec) shrimp spent in within one body length of a goby, the proxy for contact.
 
 ### 3. species.csv
 
